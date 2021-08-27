@@ -1,0 +1,14 @@
+/*:*/:: </*<<*/ {{}}[[]](())>>..,,;; =/*==*/ ++--/
+'a' 'n' '*' '\n' '\085' '\0x0f' //charater
+"this "/***/"i\
+s " "s"
+//dfgsgfds
+"tring\n\""\e\s\c\"" true false
+_0identify
+
+0666ul
+96354llu
+0xffe55U
+3.6f
+5.999ld
+0xff.55ap-06
