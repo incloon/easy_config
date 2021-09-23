@@ -17,7 +17,7 @@ namespace ezcfg
 	public:
 		Lexer()
 			: file_name()
-			, line(0)
+			, line(1)
 			, current_token(Token::END)
 			, token_text()
 			, integer_value(0)
@@ -33,7 +33,7 @@ namespace ezcfg
 			}
 			stream.reset(ifs_ptr);
 			file_name = file;
-			line = 0;
+			line = 1;
 			return true;
 		}
 
@@ -44,7 +44,7 @@ namespace ezcfg
 
 			stream.reset(new std::stringstream(source));
 			file_name = "string";
-			line = 0;
+			line = 1;
 			return true;
 		}
 

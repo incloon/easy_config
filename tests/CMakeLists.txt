@@ -35,9 +35,11 @@ target_compile_features(test_set PRIVATE cxx_std_20)
 
 add_test (lexer_test test_set ${CMAKE_CURRENT_SOURCE_DIR}/lexis_sample.txt --dt-source-file=lexer_test.cpp)
 add_test (interpreter_test test_set ${CMAKE_CURRENT_SOURCE_DIR}/pod_struct.txt --dt-source-file=interpreter_test.cpp)
+add_test (compiler_test ../compiler ${CMAKE_CURRENT_SOURCE_DIR}/pod_struct.h ${CMAKE_CURRENT_SOURCE_DIR}/pod_struct.cpp)
 
 add_custom_target(run_test ALL
 	COMMAND ctest -C $<CONFIG> --output-on-failure
 	DEPENDS
 		test_set
+		compiler
 )
