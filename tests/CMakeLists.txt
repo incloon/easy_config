@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.15)
-enable_testing()
 include(FetchContent)
 
 FetchContent_Declare(doctest
@@ -31,15 +30,46 @@ target_link_libraries(test_set PRIVATE
 
 target_compile_features(test_set PRIVATE cxx_std_20)
 
+add_custom_command(
+	OUTPUT pod_struct.hpp
+	COMMAND ../compiler ${CMAKE_CURRENT_SOURCE_DIR}/pod_struct.h pod_struct.hpp
+#	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	DEPENDS compiler
+)
+
+add_executable(compiler_test
+	dt_frame_main.cpp
+	#pod_struct.cpp
+	compiler_test.cpp
+)
+
+target_link_libraries(compiler_test PRIVATE
+	interpreter
+	doctest
+	magic_enum
+)
+
+target_compile_features(compiler_test PRIVATE cxx_std_20)
+
+target_sources(compiler_test PRIVATE pod_struct.hpp)
+target_include_directories(compiler_test PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+
+#add_custom_target(compiler_try_to_run ALL
+#	COMMAND ../compiler ${CMAKE_CURRENT_SOURCE_DIR}/pod_struct.h ${CMAKE_CURRENT_BINARY_DIR}/pod_struct.cpp
+#	DEPENDS compiler
+#)
+
+
+
 #####################################################################
 
-add_test (lexer_test test_set ${CMAKE_CURRENT_SOURCE_DIR}/lexis_sample.txt --dt-source-file=lexer_test.cpp)
-add_test (interpreter_test test_set ${CMAKE_CURRENT_SOURCE_DIR}/pod_struct.txt --dt-source-file=interpreter_test.cpp)
-add_test (compiler_test ../compiler ${CMAKE_CURRENT_SOURCE_DIR}/pod_struct.h ${CMAKE_CURRENT_SOURCE_DIR}/pod_struct.cpp)
+add_test (lexer_test test_set ${CMAKE_CURRENT_SOURCE_DIR}/lexis_sample.txt --dt-source-file=*lexer_test*)
+add_test (interpreter_test test_set ${CMAKE_CURRENT_SOURCE_DIR}/pod_struct.txt --dt-source-file=*interpreter_test*)
+add_test (compiler_test compiler_test ${CMAKE_CURRENT_SOURCE_DIR}/pod_struct.txt)
 
 add_custom_target(run_test ALL
 	COMMAND ctest -C $<CONFIG> --output-on-failure
 	DEPENDS
 		test_set
-		compiler
+		compiler_test
 )

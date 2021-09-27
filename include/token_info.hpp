@@ -3,9 +3,8 @@
 
 namespace ezcfg
 {
-	enum class Token : unsigned char
+	enum class Token : unsigned short
 	{
-		SCOPE,              //  ::
 		L_BRACE             =  '{' ,
 		R_BRACE             =  '}' ,
 		L_BRACKET           =  '[' ,
@@ -24,6 +23,20 @@ namespace ezcfg
 		SUB                 =  '-' ,
 		MUL                 =  '*' ,
 		DIV                 =  '/' ,
+		
+		//not support
+		COLON               =  ':' ,
+		BIT_NOT             =  '~' ,
+		LOG_NOT             =  '!' ,
+		BIT_AND             =  '&' ,
+		BIT_OR              =  '|' ,
+		BIT_XOR             =  '^' ,
+		LOG_AND             =  256 , //  &&
+		LOG_OR,             //  ||
+		BIT_L_SHIFT,        //  <<
+		//end not support
+		
+		SCOPE,              //  ::
 		INT,                // true false
 		FLOAT,
 		STR,
@@ -36,17 +49,6 @@ namespace ezcfg
 		ENUM,
 		CONSTANT,
 #endif // COMPILER
-		
-		//not support
-		COLON               =  ':' ,
-		BIT_NOT             =  '~' ,
-		LOG_NOT             =  '!' ,
-		BIT_L_SHIFT,        //  <<
-		BIT_AND             =  '&' ,
-		LOG_AND,            //  &&
-		BIT_OR              =  '|' ,
-		LOG_OR,             //  ||
-		BIT_XOR             =  '^' ,
 		
 		END
 	};

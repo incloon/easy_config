@@ -98,6 +98,7 @@ namespace ezcfg
 				{
 				case Token::ID:
 					type_name = lex.getTokenText();
+					identify.clear();
 					if (lex.next() == Token::ID)
 					{
 						identify = lex.getTokenText();
@@ -191,6 +192,7 @@ namespace ezcfg
 
 int main(int argc, char** argv)
 {
+	std::cout << (ezcfg::Token::R_BRACE == ezcfg::Token::LOG_OR) << std::endl;
 	ezcfg::Compiler cp(argv[2]);
 	cp.loadFile(argv[1]);
 	cp.compile();

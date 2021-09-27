@@ -1,20 +1,8 @@
 #include "common_test_header.h"
 #include <interpreter.hpp>
 #include <magic_enum.hpp>
-
+#include "pod_struct.h"
 using namespace std;
-
-struct pod
-{
-	int a;
-	float b;
-	char c;
-	char d[2];
-	char e[2][3];
-	std::string f;
-	std::vector<int> g;
-	std::map<float, int> h;
-};
 
 template<>
 void ezcfg::Interpreter::parserDispatcher<::pod>(pod& data)

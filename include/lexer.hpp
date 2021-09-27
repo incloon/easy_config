@@ -98,7 +98,6 @@ namespace ezcfg
 				return std::stoi(result, nullptr, 16);
 			}
 			default:
-				stream->get();
 				char current_char = stream->peek();
 				if (current_char >= '0' && current_char <= '7')
 				{
@@ -238,10 +237,9 @@ namespace ezcfg
 
 		void recognizeSingleString()
 		{
-			if (stream->peek() != '"')
+			if (stream->get() != '"')
 				lexError("Expected the charactor \"");
 
-			stream->get();
 			while (true)
 			{
 				switch (stream->peek())
@@ -257,6 +255,12 @@ namespace ezcfg
 					token_text.push_back(escapeSequences());
 					if (token_text.back() == '\n')
 						token_text.pop_back();
+					else if (token_text.back() == '\t' && stream->peek() == '\n')
+					{
+						token_text.pop_back();
+						stream->get();
+					}
+					break;
 				default:
 					token_text.push_back(stream->get());
 					break;
@@ -273,8 +277,10 @@ namespace ezcfg
 				{
 				case '"':
 					recognizeSingleString();
+					break;
 				case '\n':
 					++line;
+				case '\r':
 				case '\t':
 				case ' ':
 					stream->get();
@@ -571,6 +577,7 @@ namespace ezcfg
 
 				case '\n':
 					++line;
+				case '\r':
 				case '\t':
 				case ' ':
 					stream->get();

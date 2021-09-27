@@ -47,9 +47,11 @@ TEST_CASE("lex")
 	REQUIRE(lex.next() == ezcfg::Token::INT);
 	REQUIRE(lex.getIntegetValue() == '\n');
 	REQUIRE(lex.next() == ezcfg::Token::INT);
-	REQUIRE(lex.getIntegetValue() == '\085');
+	REQUIRE(lex.getIntegetValue() == '\075');
 	REQUIRE(lex.next() == ezcfg::Token::INT);
-	REQUIRE(lex.getIntegetValue() == '\0x0f');
+	REQUIRE(lex.getIntegetValue() == '\55');
+	REQUIRE(lex.next() == ezcfg::Token::INT);
+	REQUIRE(lex.getIntegetValue() == '\x0f');
 	REQUIRE(lex.next() == ezcfg::Token::STR);
 	REQUIRE(lex.getTokenText() == "this is string\n\"esc\"");
 
