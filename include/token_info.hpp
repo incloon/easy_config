@@ -17,13 +17,13 @@ namespace ezcfg
 		COMMA               =  ',' ,
 		SEMICOLON           =  ';' ,
 		HASH                =  '#' ,
-		
+
 		EQU                 =  '=' ,
 		ADD                 =  '+' ,
 		SUB                 =  '-' ,
 		MUL                 =  '*' ,
 		DIV                 =  '/' ,
-		
+
 		//not support
 		COLON               =  ':' ,
 		BIT_NOT             =  '~' ,
@@ -35,13 +35,13 @@ namespace ezcfg
 		LOG_OR,             //  ||
 		BIT_L_SHIFT,        //  <<
 		//end not support
-		
+
 		SCOPE,              //  ::
 		INT,                // true false
 		FLOAT,
 		STR,
 		ID,
-		
+
 #ifdef COMPILER
 		//keyword
 		STRUCT,
@@ -49,7 +49,7 @@ namespace ezcfg
 		ENUM,
 		CONSTANT,
 #endif // COMPILER
-		
+
 		END
 	};
 } /* namespace: ezcfg */

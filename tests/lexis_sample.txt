@@ -10,5 +10,5 @@ _0identify
 96354llu
 0xffe55U
 3.6f
-5.999ld
+5.999l
 0xff.55ap-06
