@@ -361,6 +361,8 @@ namespace ezcfg
 				current_token = Token::ENUM;
 			else if (token_text == "const")
 				current_token = Token::CONSTANT;
+			else if (token_text == "EZCFG_REGISTER_STRUCT")
+				current_token = Token::MACRO_REGISTER;
 #endif // COMPILER
 			else
 				current_token = Token::ID;
@@ -752,6 +754,7 @@ namespace ezcfg
 				{Token::NAMESPACE,"namespace"},
 				{Token::ENUM,"enum"},
 				{Token::CONSTANT,"const"},
+				{Token::MACRO_REGISTER,"EZCFG_REGISTER_STRUCT"},
 #endif // COMPILER
 			};
 

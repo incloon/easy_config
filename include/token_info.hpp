@@ -48,6 +48,7 @@ namespace ezcfg
 		NAMESPACE,
 		ENUM,
 		CONSTANT,
+		MACRO_REGISTER,
 #endif // COMPILER
 
 		END

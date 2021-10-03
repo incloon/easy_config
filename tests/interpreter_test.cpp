@@ -1,6 +1,5 @@
 #include "common_test_header.h"
 #include <interpreter.hpp>
-#include <magic_enum.hpp>
 #include "pod_struct.h"
 using namespace std;
 

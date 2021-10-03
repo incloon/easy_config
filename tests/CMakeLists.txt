@@ -6,13 +6,7 @@ FetchContent_Declare(doctest
 	GIT_TAG           2.4.6
 )
 
-FetchContent_Declare(magic_enum
-	GIT_REPOSITORY    https://github.com/Neargye/magic_enum.git
-	GIT_TAG           v0.7.3
-)
-
 FetchContent_MakeAvailable(doctest)
-FetchContent_MakeAvailable(magic_enum)
 
 #####################################################################
 
@@ -25,41 +19,33 @@ add_executable(test_set
 target_link_libraries(test_set PRIVATE
 	interpreter
 	doctest
-	magic_enum
 )
 
 target_compile_features(test_set PRIVATE cxx_std_20)
 
+set(TEST_GEN_FILE ${CMAKE_CURRENT_BINARY_DIR}/pod_struct.cpp)
 add_custom_command(
-	OUTPUT pod_struct.hpp
-	COMMAND ../compiler ${CMAKE_CURRENT_SOURCE_DIR}/pod_struct.h pod_struct.hpp
-#	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	OUTPUT ${TEST_GEN_FILE}
+	COMMAND compiler tests/pod_struct.h ${TEST_GEN_FILE}
+	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 	DEPENDS compiler
 )
 
 add_executable(compiler_test
 	dt_frame_main.cpp
-	#pod_struct.cpp
 	compiler_test.cpp
+	${TEST_GEN_FILE}
 )
 
 target_link_libraries(compiler_test PRIVATE
 	interpreter
 	doctest
-	magic_enum
+)
+target_include_directories(compiler_test PRIVATE
+	${CMAKE_SOURCE_DIR}
 )
 
 target_compile_features(compiler_test PRIVATE cxx_std_20)
-
-target_sources(compiler_test PRIVATE pod_struct.hpp)
-target_include_directories(compiler_test PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-
-#add_custom_target(compiler_try_to_run ALL
-#	COMMAND ../compiler ${CMAKE_CURRENT_SOURCE_DIR}/pod_struct.h ${CMAKE_CURRENT_BINARY_DIR}/pod_struct.cpp
-#	DEPENDS compiler
-#)
-
-
 
 #####################################################################
 

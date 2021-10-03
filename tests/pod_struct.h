@@ -1,3 +1,5 @@
+#include <interpreter.hpp>
+
 struct pod
 {
 	int a = 1;
@@ -11,3 +13,5 @@ struct pod
 	int def_value1 = 2;
 	int def_value2 = 22;
 };
+
+EZCFG_REGISTER_STRUCT(pod);

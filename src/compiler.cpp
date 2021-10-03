@@ -1,5 +1,6 @@
 #define COMPILER
-#include <interpreter.hpp>
+#include <lexer.hpp>
+#include <vector>
 
 namespace ezcfg
 {
@@ -30,7 +31,6 @@ namespace ezcfg
 
 	public:
 		Compiler(const std::string file)
-			: stream(new std::ofstream)
 		{
 			auto ofs_ptr = new std::ofstream(file);
 			if (!ofs_ptr->is_open())
@@ -39,6 +39,19 @@ namespace ezcfg
 				exit(-1);
 			}
 			stream.reset(ofs_ptr);
+		}
+
+		Compiler(int argc, char* argv[])
+			: Compiler(argv[argc - 1])
+		{
+			loadFile(argc - 2, argv + 1);
+		}
+
+		void loadFile(int argc, char** argv)
+		{
+			for (size_t i = 1; i < argc - 1; i++)
+				file_list.push_back(argv[i]);
+			loadFile(argv[argc - 1]);
 		}
 
 		void loadFile(const std::string& file)
@@ -191,6 +204,9 @@ namespace ezcfg
 				case Token::STRUCT:
 					structDeclaration();
 					break;
+				case Token::MACRO_REGISTER:
+					registerMacroIgnore();
+					break;
 				default:
 					lex.syntaxError("Unexpected token");
 					break;
@@ -284,6 +300,13 @@ namespace ezcfg
 		void compile()
 		{
 			*stream << "#include <interpreter.hpp>\n";
+			if (lex.currentFilename() != "string")
+			{
+				*stream << "#include <"<< lex.currentFilename() <<">\n";
+				if (!file_list.empty())
+					for (auto& file_name : file_list)
+						*stream << "#include <" << file_name << ">\n";
+			}
 
 			while (true)
 				switch (lex.getToken())
@@ -294,16 +317,35 @@ namespace ezcfg
 				case Token::STRUCT:
 					structDeclaration();
 					break;
+				case Token::MACRO_REGISTER:
+					registerMacroIgnore();
+					break;
 				case Token::END:
-					return;
+					if (file_list.empty())
+						return;
+					else
+					{
+						loadFile(file_list.back());
+						file_list.pop_back();
+					}
 				default:
 					lex.syntaxError("Unexpected token");
 					break;
 				}
 		}
 
+		void registerMacroIgnore()
+		{
+			lex.match(Token::MACRO_REGISTER);
+			lex.match(Token::L_PARENTHESIS);
+			lex.match(Token::ID);
+			lex.match(Token::R_PARENTHESIS);
+			lex.match(Token::SEMICOLON);
+		}
+
 	private:
 		Lexer lex;
+		std::vector<std::string> file_list;
 		std::vector<StructMemberInfo> struct_info;
 		std::vector<std::string> current_scope_name;
 		NameScope name_tree;
@@ -313,7 +355,6 @@ namespace ezcfg
 
 int main(int argc, char** argv)
 {
-	std::cout << (ezcfg::Token::R_BRACE == ezcfg::Token::LOG_OR) << std::endl;
 	ezcfg::Compiler cp(argv[2]);
 	cp.loadFile(argv[1]);
 	cp.compile();

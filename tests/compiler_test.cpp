@@ -1,11 +1,8 @@
 #include "common_test_header.h"
 #include <interpreter.hpp>
-#include <magic_enum.hpp>
 #include "pod_struct.h"
-#include <pod_struct.hpp>
 
 using namespace std;
-
 
 TEST_CASE("pod struct parse")
 {
