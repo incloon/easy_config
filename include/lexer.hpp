@@ -9,6 +9,7 @@
 #include <memory>
 #include <map>
 #include <token_info.hpp>
+#include <arithmetic_type.hpp>
 
 namespace ezcfg
 {
@@ -33,6 +34,7 @@ namespace ezcfg
 				}
 				stream.reset(ifs_ptr);
 				line = 1;
+				get();
 				return true;
 			}
 
@@ -74,6 +76,8 @@ namespace ezcfg
 					case '\r':
 						if (stream->peek() == '\n')
 							stream->get();
+						else
+							return temp;
 					case '\n':
 						current_charator = '\n';
 						++line;
@@ -493,7 +497,6 @@ namespace ezcfg
 			if (!stream.loadFile(file))
 				return false;
 			file_name = file;
-			stream.get();
 			return true;
 		}
 
@@ -502,7 +505,6 @@ namespace ezcfg
 			if (!stream.loadSource(source))
 				return false;
 			file_name = "string";
-			stream.get();
 			return true;
 		}
 
@@ -559,6 +561,8 @@ namespace ezcfg
 				case '=':    //  = (==)
 				case '+':
 				case '-':
+				case '*':
+				case '%':
 					current_token = static_cast<Token>(stream.get());
 					return current_token;
 
@@ -582,20 +586,21 @@ namespace ezcfg
 					current_token = Token::STR;
 					return current_token;
 
-				case '*':
 
 				case '~':
 				case '!':
 				case '&':    //  & (&&)
 				case '|':    //  | (||)
 				case '^':
+				case '?':
 					std::cout << "Lexer: Current symbol not support! line: " << __LINE__ << std::endl;
 					exit(-1);
 
-				case '\n':
-				case '\r':
-				case '\t':
 				case ' ':
+				case '\t':
+				case '\v':
+				case '\f':
+				case '\n':
 					stream.get();
 					break;
 
@@ -698,7 +703,7 @@ namespace ezcfg
 			return static_cast<bool>(stream);
 		}
 
-		void syntaxError(const std::string& info)
+		[[noreturn]] void syntaxError(const std::string& info)
 		{
 			std::cerr << file_name << " : " << stream.getLineNum() << " : " << "Syntax error: " << info << std::endl;
 			std::cerr << "current token is " << tokenToString(current_token);
@@ -720,17 +725,7 @@ namespace ezcfg
 			exit(-1);
 		}
 
-		void printTokenContent()
-		{
-			if (current_token == Token::FLOAT)
-				std::cout << float_value << std::flush;
-			else if (current_token == Token::INT)
-				std::cout << integer_value << std::flush;
-			else
-				std::cout << token_text << std::flush;
-		}
-
-		void lexError(const std::string& info)
+		[[noreturn]] void lexError(const std::string& info)
 		{
 			std::cerr << file_name << ": " << stream.getLineNum() << ": " << "Lexical error: " << info << std::endl;
 			exit(-1);

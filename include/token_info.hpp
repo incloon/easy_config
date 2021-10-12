@@ -23,6 +23,7 @@ namespace ezcfg
 		SUB                 =  '-' ,
 		MUL                 =  '*' ,
 		DIV                 =  '/' ,
+		REM                 =  '%' ,
 
 		//not support
 		COLON               =  ':' ,

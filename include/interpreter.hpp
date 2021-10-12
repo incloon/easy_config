@@ -27,7 +27,22 @@ namespace ezcfg
 		}
 
 		template<typename T>
-		void getTokenValue(T& num)
+		void parse(T& data)
+		{
+			parserDispatcher(data);
+			lex.option(Token::SEMICOLON);
+		}
+
+		template<typename T, typename... TS>
+		void parse(T& data, TS&... datas)
+		{
+			parserDispatcher(data);
+			lex.option(Token::SEMICOLON);
+			parse(datas...);
+		}
+
+		template<typename T>
+		void parseExpression(T& num)
 		{
 			static_assert(std::is_arithmetic<T>::value, "Expected a arithmetic type");
 
@@ -39,6 +54,31 @@ namespace ezcfg
 				lex.syntaxError("Expected number");
 
 			lex.next();
+		}
+
+		explicit operator bool() const
+		{ return static_cast<bool>(lex); }
+
+	private:
+		template<typename T>
+		void parseArithmeticCell(T& num)
+		{
+			static_assert(std::is_arithmetic<T>::value, "Expected a arithmetic type");
+
+			if (lex.getToken() == Token::L_BRACE)
+			{
+				lex.match(Token::L_BRACE);
+				if (lex.getToken() != Token::R_BRACE)
+				{
+					parseExpression(num);
+					lex.option(Token::COMMA);
+				}
+				else
+					num = 0;
+				lex.match(Token::R_BRACE);
+			}
+			else
+				parseExpression(num);
 		}
 
 		void stringToString(std::string& string)
@@ -68,14 +108,14 @@ namespace ezcfg
 		void charatorStreamToString(std::string& string)
 		{
 			char temp;
-			parseNumber(temp);
+			parseArithmeticCell(temp);
 			string.clear();
 			string.push_back(temp);
 			while (lex.getToken() == Token::COMMA)
 			{
 				if (lex.next() == Token::R_BRACE)
 					break;
-				parseNumber(temp);
+				parseArithmeticCell(temp);
 				string.push_back(temp);
 			}
 		}
@@ -83,34 +123,13 @@ namespace ezcfg
 		template<typename T, size_t n>
 		void charatorStreamToString(T(&string)[n])
 		{
-			parseNumber(string[0]);
+			parseArithmeticCell(string[0]);
 			for (size_t i = 1; i < n; i++)
 			{
 				lex.match(Token::COMMA);
-				parseNumber(string[i]);
+				parseArithmeticCell(string[i]);
 			}
 			lex.option(Token::COMMA);
-		}
-
-		template<typename T>
-		void parseNumber(T& num)
-		{
-			static_assert(std::is_arithmetic<T>::value, "Expected a arithmetic type");
-
-			if (lex.getToken() == Token::L_BRACE)
-			{
-				lex.match(Token::L_BRACE);
-				if (lex.getToken() != Token::R_BRACE)
-				{
-					getTokenValue(num);
-					lex.option(Token::COMMA);
-				}
-				else
-					num = 0;
-				lex.match(Token::R_BRACE);
-			}
-			else
-				getTokenValue(num);
 		}
 
 		template<typename T>
@@ -215,92 +234,75 @@ namespace ezcfg
 			lex.match(Token::R_BRACE);
 		}
 
+
+
 		template<class T>
 		typename std::enable_if<!std::is_arithmetic<T>::value>::type parserDispatcher(T&);
 
 		template<typename T>
 		typename std::enable_if<std::is_arithmetic<T>::value>::type parserDispatcher(T& num)
-		{
-			parseNumber(num);
-		}
+		{ parseArithmeticCell(num); }
 
-		void parserDispatcher(std::string& string)
-		{
-			parseString(string);
-		}
+
 
 		template<typename T, size_t n>
 		void parserDispatcher(T(&array)[n])
-		{
-			parseArray<n>(array);
-		}
-
-		template<size_t n>
-		void parserDispatcher(char(&string)[n])
-		{
-			parseString(string);
-		}
-
-		template<size_t n>
-		void parserDispatcher(signed char(&string)[n])
-		{
-			parseString(string);
-		}
-
-		template<size_t n>
-		void parserDispatcher(unsigned char(&string)[n])
-		{
-			parseString(string);
-		}
+		{ parseArray<n>(array); }
 
 		template<typename T1, size_t n>
 		void parserDispatcher(std::array<T1, n>& array)
-		{
-			parseArray<n>(array);
-		}
+		{ parseArray<n>(array); }
+
+
+
+		template<size_t n>
+		void parserDispatcher(char(&string)[n])
+		{ parseString(string); }
+
+		template<size_t n>
+		void parserDispatcher(signed char(&string)[n])
+		{ parseString(string); }
+
+		template<size_t n>
+		void parserDispatcher(unsigned char(&string)[n])
+		{ parseString(string); }
+
+		void parserDispatcher(std::string& string)
+		{ parseString(string); }
+
+
 
 		template<typename T, typename A>
 		void parserDispatcher(std::vector<T, A>& vector)
-		{
-			parseDynamicArray<T>(vector);
-		}
+		{ parseDynamicArray<T>(vector); }
 
 		template<typename T, typename A>
 		void parserDispatcher(std::deque<T, A>& vector)
-		{
-			parseDynamicArray<T>(vector);
-		}
+		{ parseDynamicArray<T>(vector); }
 
 		template<typename T, typename A>
 		void parserDispatcher(std::list<T, A>& vector)
-		{
-			parseDynamicArray<T>(vector);
-		}
+		{ parseDynamicArray<T>(vector); }
+
 
 
 		template<typename T, typename C, typename A>
 		void parserDispatcher(std::set<T, C, A>& set)
-		{
-			parseSet<T>(set);
-		}
+		{ parseSet<T>(set); }
 
 		template<typename T, typename C, typename A>
 		void parserDispatcher(std::multiset<T, C, A>& set)
-		{
-			parseSet<T>(set);
-		}
+		{ parseSet<T>(set); }
 
 		template<typename T, typename H, typename C, typename A>
 		void parserDispatcher(std::unordered_set<T, H, C, A>& set)
-		{
-			parseSet<T>(set);
-		}
+		{ parseSet<T>(set); }
 
 		template<typename T, typename H, typename C, typename A>
 		void parserDispatcher(std::unordered_multiset<T, H, C, A>& set)
-		{
-			parseSet<T>(set);
-		}
+		{ parseSet<T>(set); }
+
+
 
 		template<typename T1, typename T2>
 		void parserDispatcher(std::pair<T1, T2>& pair)
@@ -318,49 +320,22 @@ namespace ezcfg
 
 		template<typename T1, typename T2, typename C, typename A>
 		void parserDispatcher(std::map<T1, T2, C, A>& map)
-		{
-			parseMap<T1, T2>(map);
-		}
+		{ parseMap<T1, T2>(map); }
 
 		template<typename T1, typename T2, typename C, typename A>
 		void parserDispatcher(std::multimap<T1, T2, C, A>& map)
-		{
-			parseMap<T1, T2>(map);
-		}
+		{ parseMap<T1, T2>(map); }
 
 		template<typename T1, typename T2, typename H, typename C, typename A>
 		void parserDispatcher(std::unordered_map<T1, T2, H, C, A>& map)
-		{
-			parseMap<T1, T2>(map);
-		}
+		{ parseMap<T1, T2>(map); }
 
 		template<typename T1, typename T2, typename H, typename C, typename A>
 		void parserDispatcher(std::unordered_multimap<T1, T2, H, C, A>& map)
-		{
-			parseMap<T1, T2>(map);
-		}
+		{ parseMap<T1, T2>(map); }
 
-		template<typename T>
-		void parse(T& data)
-		{
-			parserDispatcher(data);
-			lex.option(Token::SEMICOLON);
-		}
 
-		template<typename T, typename... TS>
-		void parse(T& data, TS&... datas)
-		{
-			parserDispatcher(data);
-			lex.option(Token::SEMICOLON);
-			parse(datas...);
-		}
 
-		explicit operator bool() const
-		{
-			return static_cast<bool>(lex);
-		}
-
-	private:
 		Lexer lex;
 	};
 } /* namespace: ezcfg */
