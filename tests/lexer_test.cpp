@@ -38,44 +38,44 @@ TEST_CASE("lex")
 	REQUIRE(lex.next() == ezcfg::Token::SUB);
 
 	REQUIRE(lex.next() == ezcfg::Token::INT);
-	REQUIRE(lex.getIntegetValue() == 'a');
+	REQUIRE(char(lex.getNumber()) == 'a');
 	REQUIRE(lex.next() == ezcfg::Token::INT);
-	REQUIRE(lex.getIntegetValue() == 'n');
+	REQUIRE(char(lex.getNumber()) == 'n');
 	REQUIRE(lex.next() == ezcfg::Token::INT);
-	REQUIRE(lex.getIntegetValue() == '*');
+	REQUIRE(char(lex.getNumber()) == '*');
 	REQUIRE(lex.next() == ezcfg::Token::INT);
-	REQUIRE(lex.getIntegetValue() == '\n');
+	REQUIRE(char(lex.getNumber()) == '\n');
 	REQUIRE(lex.next() == ezcfg::Token::INT);
-	REQUIRE(lex.getIntegetValue() == '\075');
+	REQUIRE(char(lex.getNumber()) == '\075');
 	REQUIRE(lex.next() == ezcfg::Token::INT);
-	REQUIRE(lex.getIntegetValue() == '\55');
+	REQUIRE(char(lex.getNumber()) == '\55');
 	REQUIRE(lex.next() == ezcfg::Token::INT);
-	REQUIRE(lex.getIntegetValue() == '\x0f');
+	REQUIRE(char(lex.getNumber()) == '\x0f');
 	REQUIRE(lex.next() == ezcfg::Token::STR);
 	REQUIRE(lex.getTokenText() == "this is string\n\"esc\"");
 
 	REQUIRE(lex.next() == ezcfg::Token::INT);
-	REQUIRE(lex.getIntegetValue() == 1);
+	REQUIRE(bool(lex.getNumber()) == true);
 	REQUIRE(lex.getTokenText() == "true");
 	REQUIRE(lex.next() == ezcfg::Token::INT);
-	REQUIRE(lex.getIntegetValue() == 0);
+	REQUIRE(bool(lex.getNumber()) == false);
 	REQUIRE(lex.getTokenText() == "false");
 
 	REQUIRE(lex.next() == ezcfg::Token::ID);
 	REQUIRE(lex.getTokenText() == "_0identify");
 
 	REQUIRE(lex.next() == ezcfg::Token::INT);
-	REQUIRE(lex.getIntegetValue() == 0666);
+	REQUIRE(size_t(lex.getNumber()) == 0666);
 	REQUIRE(lex.next() == ezcfg::Token::INT);
-	REQUIRE(lex.getIntegetValue() == 96354);
+	REQUIRE(size_t(lex.getNumber()) == 96354);
 	REQUIRE(lex.next() == ezcfg::Token::INT);
-	REQUIRE(lex.getIntegetValue() == 0xffe55);
+	REQUIRE(size_t(lex.getNumber()) == 0xffe55);
 	REQUIRE(lex.next() == ezcfg::Token::FLOAT);
-	REQUIRE(lex.getFloatValue() == 3.6);
+	REQUIRE(double(lex.getNumber()) == 3.6);
 	REQUIRE(lex.next() == ezcfg::Token::FLOAT);
-	REQUIRE(lex.getFloatValue() == 5.999);
+	REQUIRE(double(lex.getNumber()) == 5.999);
 	REQUIRE(lex.next() == ezcfg::Token::FLOAT);
-	REQUIRE(lex.getFloatValue() == 0xff.55ap-06);
+	REQUIRE(double(lex.getNumber()) == 0xff.55ap-06);
 
 	REQUIRE(lex.next() == ezcfg::Token::END);
 }

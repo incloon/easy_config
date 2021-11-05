@@ -85,7 +85,7 @@ namespace ezcfg
 					{
 						lex.match(Token::L_BRACKET);
 						type_name.push_back('[');
-						type_name += std::to_string(lex.getIntegetValue());
+						type_name += std::to_string(size_t(lex.getNumber()));
 						lex.match(Token::INT);
 						lex.match(Token::R_BRACKET);
 						type_name.push_back(']');
@@ -161,7 +161,7 @@ namespace ezcfg
 					{
 						lex.match(Token::L_BRACKET);
 						type_name.push_back('[');
-						type_name += std::to_string(lex.getIntegetValue());
+						type_name += std::to_string(size_t(lex.getNumber()));
 						lex.match(Token::INT);
 						lex.match(Token::R_BRACKET);
 						type_name.push_back(']');

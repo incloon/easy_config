@@ -17,11 +17,136 @@ namespace ezcfg
 	{
 		class FilterStream
 		{
+			class FormatFilterStream
+			{
+			public:
+				FormatFilterStream(size_t& line, const std::unique_ptr<std::istream>& stream)
+					: current_charator{ 0 }
+					, line{ line }
+					, stream{ stream }
+				{}
+
+				char get()
+				{
+					char temp = current_charator;
+					while (true)
+						switch (current_charator = stream->get())
+						{
+						case '\\':
+							switch (stream->peek())
+							{
+							case '\r':
+								stream->get();
+								if (stream->peek() != '\n')
+								{
+									stream->unget();
+									return temp;
+								}
+							case '\n':
+								stream->get();
+								++line;
+								break;
+							case std::ifstream::traits_type::eof():
+								current_charator = std::ifstream::traits_type::eof();
+								return temp;
+							default:
+								return temp;
+							}
+							break;
+						case '\r'://fallthrough
+							if (stream->peek() == '\n')
+							{
+								stream->get();
+								current_charator = '\n';
+							}
+							else
+								return temp;
+						case '\n':
+							++line;
+						default:
+							return temp;
+						}
+				}
+
+				char peek() const
+				{
+					return current_charator;
+				}
+
+			private:
+				char current_charator;
+				size_t& line;
+				const std::unique_ptr<std::istream>& stream;
+			};
+
+			class CommentFilterStream
+			{
+			public:
+				CommentFilterStream(const std::string& file_name, FormatFilterStream& stream)
+					: current_charator{ 0 }
+					, file_name{ file_name }
+					, stream{ stream }
+				{}
+
+				char get()
+				{
+					char temp = current_charator;
+					while (true)
+						switch (current_charator = stream.get())
+						{
+						case '/':
+							switch (stream.peek())
+							{
+							case '/':
+								while (stream.get() != '\n');
+								current_charator = ' ';
+								return temp;
+							case '*':
+								stream.get();
+								while (true)
+									switch (stream.get())
+									{
+									case '*':
+										if (stream.peek() == '/')
+										{
+											stream.get();
+											current_charator = ' ';
+											return temp;
+										}
+										break;
+									case std::ifstream::traits_type::eof():
+										//std::cerr << file_name << ": " << line << ": " << "Lexical error: Multiline comment error" << std::endl;
+										exit(-1);
+									default:
+										break;
+									}
+							default:
+								break;
+							}
+							return temp;
+						default:
+							return temp;
+						}
+				}
+
+				char peek() const
+				{
+					return current_charator;
+				}
+
+			private:
+				char current_charator;
+				const std::string& file_name;
+				FormatFilterStream& stream;
+			};
+
 		public:
-			FilterStream()
-				: current_charator{ 0 }
-				, line{ 1 }
-				, stream{}
+			FilterStream(const std::string& file_name)
+				: line{ 1 }
+				, file_name{ file_name }
+				, base_stream{ nullptr }
+				, format_filter_stream{ line, base_stream }
+				, comment_filter_stream{ file_name, format_filter_stream }
 			{}
 
 			bool loadFile(const std::string& file)
@@ -32,9 +157,10 @@ namespace ezcfg
 					delete ifs_ptr;
 					return false;
 				}
-				stream.reset(ifs_ptr);
+				base_stream.reset(ifs_ptr);
 				line = 1;
-				get();
+				format_filter_stream.get();
+				comment_filter_stream.get();
 				return true;
 			}
 
@@ -43,76 +169,97 @@ namespace ezcfg
 				if (source.empty())
 					return false;
 
-				stream.reset(new std::stringstream(source));
+				base_stream.reset(new std::stringstream(source));
 				line = 1;
+				format_filter_stream.get();
+				comment_filter_stream.get();
 				return true;
 			}
 
-			char get()
+			inline char get()
 			{
-				char temp = current_charator;
-				while (true)
-					switch (current_charator = stream->get())
-					{
-					case '\\':
-						switch (stream->peek())
-						{
-						case '\r':
-							stream->get();
-							++line;
-							if (stream->peek() != '\n')
-								break;
-						case '\n':
-							stream->get();
-							break;
-						case std::ifstream::traits_type::eof():
-							current_charator = std::ifstream::traits_type::eof();
-							return temp;
-						default:
-							current_charator = '\\';
-							return temp;
-						}
-						break;
-					case '\r':
-						if (stream->peek() == '\n')
-							stream->get();
-						else
-							return temp;
-					case '\n':
-						current_charator = '\n';
-						++line;
-					default:
-						return temp;
-					}
+				return comment_filter_stream.get();
 			}
 
-			char peek()
+			inline char peek()
 			{
-				return current_charator;
+				return comment_filter_stream.peek();
 			}
 
-			void ignore(char sentinel)
+			inline char getRaw()
 			{
-				while (get() != sentinel)
-					if (peek() == std::ifstream::traits_type::eof())
-						return;
+				return base_stream->get();
 			}
 
-			size_t getLineNum()
+			inline size_t getLineNum()
 			{
 				return line;
 			}
 
 			explicit operator bool() const
 			{
-				return stream->good();
+				return comment_filter_stream.peek() != std::ifstream::traits_type::eof();
 			}
 
 		private:
-			char current_charator;
 			size_t line;
-			std::unique_ptr<std::istream> stream;
+			const std::string& file_name;
+			std::unique_ptr<std::istream> base_stream;
+			FormatFilterStream format_filter_stream;
+			CommentFilterStream comment_filter_stream;
 		};
+
+		template<bool (Lexer::*charSet)()>
+		inline void matchCS(std::string& seq)
+		{ while ((this->*charSet)()) seq.push_back(stream.get()); }
+
+		template<bool (Lexer::*charSet)()>
+		void recognizeCS(const std::string& info, std::string& seq)
+		{
+			if ((this->*charSet)())
+				do seq.push_back(stream.get());
+				while ((this->*charSet)());
+			else lexError(info);
+		}
+
+		inline bool binarySet()
+		{ return stream.peek() == '0' || stream.peek() == '1'; }
+
+		inline bool octalSet()
+		{ return stream.peek() >= '0' && stream.peek() <= '7'; }
+
+		inline bool decimalSet()
+		{ return stream.peek() >= '0' && stream.peek() <= '9'; }
+
+		inline bool hexadecimalSet()
+		{ return stream.peek() >= 'a' && stream.peek() <= 'f' || stream.peek() >= 'A' && stream.peek() <= 'F' || stream.peek() >= '0' && stream.peek() <= '9'; }
+
+		inline bool identifierSet()
+		{ return stream.peek() >= 'a' && stream.peek() <= 'z' || stream.peek() >= 'A' && stream.peek() <= 'Z' || stream.peek() >= '0' && stream.peek() <= '9' || stream.peek() == '_'; }
+
+		inline void recognizeBinaryCS(std::string& seq)
+		{ recognizeCS<&Lexer::binarySet>("Expected a binary number", seq); }
+
+		inline void recognizeOctalCS(std::string& seq)
+		{ recognizeCS<&Lexer::octalSet>("Expected a octal number", seq); }
+
+		inline void recognizeDecimalCS(std::string& seq)
+		{ recognizeCS<&Lexer::decimalSet>("Expected a decimal number", seq); }
+
+		inline void recognizeHexadecimalCS(std::string& seq)
+		{ recognizeCS<&Lexer::hexadecimalSet>("Expected a hexadecimal number", seq); }
+
+		char charToNum(char c)
+		{
+			if (c >= '0' && c <= '9')
+				return c - '0';
+			if (c >= 'A' && c <= 'Z')
+				return c - 'A' + 10;
+			if (c >= 'a' && c <= 'z')
+				return c - 'a' + 10;
+
+			lexError("Internal error: charToNum");
+		}
 
 		char escapeSequences()
 		{
@@ -146,36 +293,28 @@ namespace ezcfg
 				stream.get();
 				while (stream.peek() == '0') stream.get();
 				std::string result;
-				if ((stream.peek() >= 'a' && stream.peek() <= 'f') || (stream.peek() >= 'A' && stream.peek() <= 'F') || (stream.peek() >= '0' && stream.peek() <= '9'))
-					result.push_back(stream.get());
+				recognizeHexadecimalCS(result);
+				if (result.size() == 1)
+					return charToNum(result.back());
 				else
-					lexError("Expected a hex number");
-				if ((stream.peek() >= 'a' && stream.peek() <= 'f') || (stream.peek() >= 'A' && stream.peek() <= 'F') || (stream.peek() >= '0' && stream.peek() <= '9'))
-				{
-					result.push_back(stream.get());
-					if ((stream.peek() >= 'a' && stream.peek() <= 'f') || (stream.peek() >= 'A' && stream.peek() <= 'F') || (stream.peek() >= '0' && stream.peek() <= '9'))
-						lexError("Escape charator hex number out of rang!");
-				}
-				return std::stoi(result, nullptr, 16);
+					return charToNum(*(result.end() - 2)) * 16 + charToNum(result.back());
 			}
 			default:
-				if (stream.peek() >= '0' && stream.peek() <= '7')
+				if (octalSet())
 				{
 					int result;
 					result = stream.get() - '0';
-					if (stream.peek() >= '0' && stream.peek() <= '7')
+					if (octalSet())
 					{
 						result = result * 8 + stream.get() - '0';
-						if (stream.peek() >= '0' && stream.peek() <= '7')
+						if (octalSet())
 						{
 							result = result * 8 + stream.get() - '0';
 							if (result > 255)
 								lexError("Escape charator octal number out of rang!");
 						}
-						return result;
 					}
-					else
-						return result;
+					return result;
 				}
 				else
 					return stream.get();
@@ -184,65 +323,50 @@ namespace ezcfg
 			}
 		}
 
-		//must consume a charator
-		bool skipComment()
+		bool matchIntegerSuffix()
 		{
-			if (stream.get() != '/')
-				lexError("Internal error! Expected the charactor /");
-
-			switch (stream.peek())
-			{
-			case '/':
-				stream.ignore('\n');
-				return true;
-			case '*':
-				stream.get();
-				while (true)
-					switch (stream.get())
-					{
-					case '*':
-						if (stream.peek() == '/')
-						{
-							stream.get();
-							return true;
-						}
-						break;
-					case std::ifstream::traits_type::eof():
-						lexError("Multiline comment error");
-					default:
-						break;
-					}
-			default:
-				return false;
-			}
-		}
-
-		void matchIntegerSuffix()
-		{
+			bool res = true;
 			switch (stream.peek())
 			{
 			case 'u':
 			case 'U':
-				stream.get();
-				if (stream.peek() == 'l' || stream.peek() == 'L')
-					stream.get();
-				if (stream.peek() == 'l' || stream.peek() == 'L')
-					stream.get();
+				res = false;
+				token_text.push_back(stream.get());
+				if (stream.peek() == 'l')
+				{
+					token_text.push_back(stream.get());
+					if (stream.peek() == 'l')
+						token_text.push_back(stream.get());
+				}
+				else if (stream.peek() == 'L')
+				{
+					token_text.push_back(stream.get());
+					if (stream.peek() == 'L')
+						token_text.push_back(stream.get());
+				}
 				break;
 			case 'l':
+				token_text.push_back(stream.get());
+				if (stream.peek() == 'l')
+					token_text.push_back(stream.get());
+				if (stream.peek() == 'u' || stream.peek() == 'U')
+					res = false, token_text.push_back(stream.get());
+				break;
 			case 'L':
 				stream.get();
-				if (stream.peek() == 'l' || stream.peek() == 'L')
-					stream.get();
+				if (stream.peek() == 'L')
+					token_text.push_back(stream.get());
 				if (stream.peek() == 'u' || stream.peek() == 'U')
-					stream.get();
+					res = false, token_text.push_back(stream.get());
 				break;
 			default:
 				break;
 			}
 
-			if ((stream.peek() >= 'a' && stream.peek() <= 'z') || (stream.peek() >= 'A' && stream.peek() <= 'Z') || (stream.peek() >= '0' && stream.peek() <= '9'))
+			if (identifierSet())
 				lexError("Integer suffix error!");
+
+			return res;
 		}
 
 		void matchFloatSuffix()
@@ -253,12 +377,12 @@ namespace ezcfg
 			case 'F':
 			case 'l':
 			case 'L':
-				stream.get();
+				token_text.push_back(stream.get());
 			default:
 				break;
 			}
 
-			if ((stream.peek() >= 'a' && stream.peek() <= 'z') || (stream.peek() >= 'A' && stream.peek() <= 'Z') || (stream.peek() >= '0' && stream.peek() <= '9'))
+			if (identifierSet())
 				lexError("Float suffix error!");
 		}
 
@@ -275,10 +399,10 @@ namespace ezcfg
 			case std::ifstream::traits_type::eof():
 				lexError("Expected the charactor '");
 			case '\\':
-				integer_value = escapeSequences();
+				number = escapeSequences();
 				break;
 			default:
-				integer_value = stream.get();
+				number = stream.get();
 				break;
 			}
 			if (stream.get() != '\'')
@@ -321,15 +445,12 @@ namespace ezcfg
 				case '"':
 					recognizeSingleString();
 					break;
-				case '\n':
-				case '\r':
 				case '\t':
+				case '\v':
+				case '\f':
+				case '\n':
 				case ' ':
 					stream.get();
-					break;
-				case '/':    // / // /*
-					if (!skipComment())
-						syntaxError("Unexpected token DIV");
 					break;
 				default:
 					return;
@@ -339,22 +460,21 @@ namespace ezcfg
 
 		void recognizeID()
 		{
-			if ((stream.peek() >= 'a' && stream.peek() <= 'z') || (stream.peek() >= 'A' && stream.peek() <= 'Z') || (stream.peek() == '_'))
-				token_text.push_back(stream.get());
+			if (stream.peek() >= 'a' && stream.peek() <= 'z' || stream.peek() >= 'A' && stream.peek() <= 'Z' || stream.peek() == '_')
+				do token_text.push_back(stream.get());
+				while (identifierSet());
 			else
 				lexError("Expected a identity");
-			while ((stream.peek() >= 'a' && stream.peek() <= 'z') || (stream.peek() >= 'A' && stream.peek() <= 'Z') || (stream.peek() >= '0' && stream.peek() <= '9') || (stream.peek() == '_'))
-				token_text.push_back(stream.get());
 
 			if (token_text == "true")
 			{
 				current_token = Token::INT;
-				integer_value = 1;
+				number = true;
 			}
 			else if (token_text == "false")
 			{
 				current_token = Token::INT;
-				integer_value = 0;
+				number = false;
 			}
 #ifdef COMPILER
 			else if (token_text == "namespace")
@@ -372,11 +492,23 @@ namespace ezcfg
 				current_token = Token::ID;
 		}
 
+		bool isSigned(unsigned long long v)
+		{
+			if (v > std::numeric_limits<int>::max() && v <= std::numeric_limits<unsigned int>::max())
+				return false;
+			else if (v > std::numeric_limits<long>::max() && v <= std::numeric_limits<unsigned long>::max())
+				return false;
+			else if (v > std::numeric_limits<long long>::max() && v <= std::numeric_limits<unsigned long long>::max())
+				return false;
+			return true;
+		}
+
 		void recognizeNum()
 		{
-			if (stream.peek() < '0' && stream.peek() > '9')
+			if (!decimalSet())
 				lexError("Expected a number");
 
+			char* discarded_value;
 			bool octal_check = false;
 			current_token = Token::INT;
 			token_text.push_back(stream.peek());
@@ -386,53 +518,48 @@ namespace ezcfg
 				{
 				case 'b':
 				case 'B':
-					integer_value = 0;
 					token_text.push_back(stream.get());
-					if (stream.peek() == '0' || stream.peek() == '1')
-					{
-						integer_value = stream.peek() - '0';
-						token_text.push_back(stream.get());
-					}
+					recognizeBinaryCS(token_text);
+					if (token_text.size() - 2 > CHAR_BIT * sizeof(size_t))
+						std::_Xout_of_range("stoull argument out of range");
 					else
-						lexError("Expected a binary number");
-
-					while (stream.peek() == '0' || stream.peek() == '1')
 					{
-						integer_value = integer_value * 2 + (stream.peek() - '0');
-						token_text.push_back(stream.get());
+						size_t temp = std::strtoull(token_text.c_str() + 2, &discarded_value, 2);
+						number = IntegerT{ temp ,isSigned(temp) && matchIntegerSuffix() };
 					}
 					return;
 				case 'x':
 				case 'X':
 					token_text.push_back(stream.get());
-					while ((stream.peek() >= 'a' && stream.peek() <= 'f') || (stream.peek() >= 'A' && stream.peek() <= 'F') || (stream.peek() >= '0' && stream.peek() <= '9'))
-						token_text.push_back(stream.get());
-					if (stream.peek() == '.')
+					matchCS<&Lexer::hexadecimalSet>(token_text);
+					if (stream.peek() != '.')
 					{
-						current_token = Token::FLOAT;
-						token_text.push_back(stream.get());
-						while ((stream.peek() >= 'a' && stream.peek() <= 'f') || (stream.peek() >= 'A' && stream.peek() <= 'F') || (stream.peek() >= '0' && stream.peek() <= '9'))
-							token_text.push_back(stream.get());
-					}
-
-					if (stream.peek() == 'p' || stream.peek() == 'P')
-					{
-						current_token = Token::FLOAT;
-						token_text.push_back(stream.get());
-						if (stream.peek() == '-' || stream.peek() == '+')
-							token_text.push_back(stream.get());
-						if ((stream.peek() >= 'a' && stream.peek() <= 'f') || (stream.peek() >= 'A' && stream.peek() <= 'F') || (stream.peek() >= '0' && stream.peek() <= '9'))
-							token_text.push_back(stream.get());
+						if (token_text.size() - 2 > CHAR_BIT * sizeof(size_t) / 4)
+							std::_Xout_of_range("stoull argument out of range");
 						else
-							lexError("Expected a hex number");
-
-						while ((stream.peek() >= 'a' && stream.peek() <= 'f') || (stream.peek() >= 'A' && stream.peek() <= 'F') || (stream.peek() >= '0' && stream.peek() <= '9'))
-							token_text.push_back(stream.get());
+						{
+							size_t temp = std::strtoull(token_text.c_str(), &discarded_value, 16);
+							number = IntegerT{ temp ,isSigned(temp) && matchIntegerSuffix() };
+						}
 					}
-					if (current_token == Token::INT)
-						integer_value = std::stoull(token_text, nullptr, 16);
-					else if (current_token == Token::FLOAT)
-						float_value = std::stod(token_text);
+					else
+					{
+						current_token = Token::FLOAT;
+						token_text.push_back(stream.get());
+						matchCS<&Lexer::hexadecimalSet>(token_text);
+						if (token_text.size() < 4)
+							lexError("Expected a hexadecimal number");
+
+						if (stream.peek() == 'p' || stream.peek() == 'P')
+						{
+							token_text.push_back(stream.get());
+							if (stream.peek() == '-' || stream.peek() == '+')
+								token_text.push_back(stream.get());
+							recognizeHexadecimalCS(token_text);
+						}
+						number = std::stod(token_text);
+						matchFloatSuffix();
+					}
 					return;
 				default:
 					octal_check = true;
@@ -440,56 +567,57 @@ namespace ezcfg
 				}
 			}
 
-			while (stream.peek() >= '0' && stream.peek() <= '9')
-				token_text.push_back(stream.get());
-			if (stream.peek() == '.')
+			matchCS<&Lexer::decimalSet>(token_text);
+			if (stream.peek() != '.')
 			{
-				octal_check = false;
+				if (octal_check)
+				{
+					for (char c : token_text)
+						if (c > '7')
+							lexError("Expected a octal number");
+					size_t temp = std::stoull(token_text, nullptr, 8);
+					number = IntegerT{ temp ,isSigned(temp) && matchIntegerSuffix() };
+				}
+				else
+					number = IntegerT{ std::stoull(token_text) ,matchIntegerSuffix() };
+			}
+			else
+			{
 				current_token = Token::FLOAT;
 				token_text.push_back(stream.get());
-				while (stream.peek() >= '0' && stream.peek() <= '9')
+				matchCS<&Lexer::decimalSet>(token_text);
+				if (stream.peek() == 'e' || stream.peek() == 'E')
+				{
 					token_text.push_back(stream.get());
+					if (stream.peek() == '-' || stream.peek() == '+')
+						token_text.push_back(stream.get());
+					recognizeDecimalCS(token_text);
+				}
+				number = std::stod(token_text);
+				matchFloatSuffix();
 			}
+		}
 
+		void recognizeDotBeginFloat()
+		{
+			recognizeDecimalCS(token_text);
 			if (stream.peek() == 'e' || stream.peek() == 'E')
 			{
-				octal_check = false;
-				current_token = Token::FLOAT;
 				token_text.push_back(stream.get());
 				if (stream.peek() == '-' || stream.peek() == '+')
 					token_text.push_back(stream.get());
-				if (stream.peek() >= '0' && stream.peek() <= '9')
-					token_text.push_back(stream.get());
-				else
-					lexError("Expected a number");
-
-				while (stream.peek() >= '0' && stream.peek() <= '9')
-					token_text.push_back(stream.get());
+				recognizeDecimalCS(token_text);
 			}
-
-			if (octal_check)
-			{
-				if (current_token != Token::INT)
-					lexError("Internal error: octal transform");
-
-				for (char c : token_text)
-					if (c > '7')
-						lexError("Expected a octal number");
-				integer_value = std::stoull(token_text, nullptr, 8);
-			}
-			else if (current_token == Token::INT)
-				integer_value = std::stoull(token_text);
-			else if (current_token == Token::FLOAT)
-				float_value = std::stod(token_text);
+			number = std::stod(token_text);
 		}
 
 	public:
 		Lexer()
 			: file_name{}
-			, stream{}
+			, stream{ file_name }
 			, current_token{ Token::END }
 			, token_text{}
-			, integer_value{ 0 }
+			, number{ 0 }
 		{};
 
 		bool loadFile(const std::string& file)
@@ -519,34 +647,27 @@ namespace ezcfg
 					stream.get();
 					if (stream.peek() == ':')
 					{
-						current_token = Token::SCOPE;
 						stream.get();
-						return current_token;
+						return current_token = Token::SCOPE;
 					}
 					else
 					{
-						current_token = Token::COLON;
 						std::cout << "Lexer: Current symbol not support! line: " << __LINE__ << std::endl;
 						exit(-1);
-						return current_token;
+						return current_token = Token::COLON;
 					}
-				case '<':    //  < <<
-					stream.get();
-					if (stream.peek() == '<')
+				case '.':
+					token_text.push_back(stream.get());
+					if (decimalSet())
 					{
-						current_token = Token::BIT_L_SHIFT;
-						stream.get();
-						std::cout << "Lexer: Current symbol not support! line: " << __LINE__ << std::endl;
-						exit(-1);
-						return current_token;
+						recognizeDotBeginFloat();
+						return current_token = Token::FLOAT;
 					}
 					else
-					{
-						current_token = Token::L_ANGLE_BRACKET;
-						return current_token;
-					}
+						return current_token = Token::DOT;
+
 				case '#':
-					stream.ignore('\n');
+					while (stream.get() != '\n');
 					break;
 				case '{':
 				case '}':
@@ -554,38 +675,25 @@ namespace ezcfg
 				case ']':
 				case '(':
 				case ')':
+				case '<':    //  < <<
 				case '>':
-				case '.':
 				case ',':
 				case ';':
 				case '=':    //  = (==)
 				case '+':
 				case '-':
 				case '*':
+				case '/':
 				case '%':
-					current_token = static_cast<Token>(stream.get());
-					return current_token;
-
-				case '/':    // / // /*
-					if (!skipComment())
-					{
-						current_token = Token::DIV;
-						std::cout << "Lexer: Current symbol not support! line: " << __LINE__ << std::endl;
-						exit(-1);
-						return current_token;
-					}
-					break;
+					return current_token = static_cast<Token>(stream.get());
 
 				case '\'':
 					recognizeCharactor();
-					current_token = Token::INT;
-					return current_token;
+					return current_token = Token::INT;
 
 				case '"':
 					recognizeMultiString();
-					current_token = Token::STR;
-					return current_token;
-
+					return current_token = Token::STR;
 
 				case '~':
 				case '!':
@@ -605,8 +713,7 @@ namespace ezcfg
 					break;
 
 				case std::ifstream::traits_type::eof():
-					current_token = Token::END;
-					return current_token;
+					return current_token = Token::END;
 					break;
 
 				default:
@@ -616,16 +723,9 @@ namespace ezcfg
 						return current_token;
 					}
 
-					if (stream.peek() >= '0' && stream.peek() <= '9')
+					if (decimalSet())
 					{
 						recognizeNum();
-
-						if (current_token == Token::INT)
-							matchIntegerSuffix();
-						else if (current_token == Token::FLOAT)
-							matchFloatSuffix();
-						else
-							lexError("Internal error in function recognizeDecimalNum()");
 						return current_token;
 					}
 
@@ -636,24 +736,12 @@ namespace ezcfg
 			}
 		}
 
-		double getFloatValue()
+		ArithmeticT getNumber()
 		{
-			if (current_token == Token::FLOAT)
-				return float_value;
-			else if (current_token == Token::INT)
-				return integer_value;
+			if (current_token == Token::INT || current_token == Token::FLOAT)
+				return number;
 
 			syntaxError("Get float value of a not number token");
-		}
-
-		size_t getIntegetValue()
-		{
-			if (current_token == Token::INT)
-				return integer_value;
-			else if (current_token == Token::FLOAT)
-				return float_value;
-
-			syntaxError("Get integet value of a not number token");
 		}
 
 		Token match(Token t)
@@ -710,10 +798,8 @@ namespace ezcfg
 			switch (current_token)
 			{
 			case Token::INT:
-				std::cerr << " value is " << integer_value;
-				break;
 			case Token::FLOAT:
-				std::cerr << " value is " << float_value;
+				std::cerr << " value is " << number;
 				break;
 			case Token::STR:
 				std::cerr << " value is " << token_text;
@@ -766,11 +852,7 @@ namespace ezcfg
 
 		Token current_token;
 		std::string token_text;
-		union
-		{
-			size_t integer_value;
-			double float_value;
-		};
+		ArithmeticT number;
 	};
 } /* namespace: ezcfg */
 #endif /* !__LEXER_HPP__ */

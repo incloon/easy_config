@@ -46,10 +46,8 @@ namespace ezcfg
 		{
 			static_assert(std::is_arithmetic<T>::value, "Expected a arithmetic type");
 
-			if (lex.getToken() == Token::INT)
-				num = lex.getIntegetValue();
-			else if (lex.getToken() == Token::FLOAT)
-				num = lex.getFloatValue();
+			if (lex.getToken() == Token::INT||lex.getToken() == Token::FLOAT)
+				num = lex.getNumber();
 			else
 				lex.syntaxError("Expected number");
 
