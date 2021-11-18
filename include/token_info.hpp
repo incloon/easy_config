@@ -1,5 +1,5 @@
-#ifndef __TOKEN_INFO_HPP__
-#define __TOKEN_INFO_HPP__
+#ifndef TOKEN_INFO__HPP
+#define TOKEN_INFO__HPP
 
 namespace ezcfg
 {
@@ -32,7 +32,7 @@ namespace ezcfg
 		BIT_AND             =  '&' ,
 		BIT_OR              =  '|' ,
 		BIT_XOR             =  '^' ,
-		LOG_AND             =  256 , //  &&
+		LOG_AND             =  128 , //  &&
 		LOG_OR,             //  ||
 		BIT_L_SHIFT,        //  <<
 		//end not support
@@ -55,4 +55,4 @@ namespace ezcfg
 		END
 	};
 } /* namespace: ezcfg */
-#endif /* !__TOKEN_INFO_HPP__ */
+#endif /* ! TOKEN_INFO__HPP */

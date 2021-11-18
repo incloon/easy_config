@@ -1,5 +1,5 @@
-#ifndef __ARITHMETIC_TYPE_HPP__
-#define __ARITHMETIC_TYPE_HPP__
+#ifndef ARITHMETIC_TYPE__HPP
+#define ARITHMETIC_TYPE__HPP
 
 #include <iostream>
 #include <type_traits>
@@ -207,4 +207,4 @@ namespace ezcfg
 #undef ARITHMETICT_DEFINE_OPERATOR
 #undef ARITHMETICT_DEFINE_TYPE_CONVERSION
 
-#endif /* !__ARITHMETIC_TYPE_HPP__ */
+#endif /* ! ARITHMETIC_TYPE__HPP */

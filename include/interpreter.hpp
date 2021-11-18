@@ -1,5 +1,5 @@
-#ifndef __INTERPRETER_HPP__
-#define __INTERPRETER_HPP__
+#ifndef INTERPRETER__HPP
+#define INTERPRETER__HPP
 
 #include <type_traits>
 #include <utility>
@@ -340,4 +340,4 @@ namespace ezcfg
 
 #define EZCFG_REGISTER_STRUCT(T) template<> void ::ezcfg::Interpreter::parserDispatcher(T&)
 
-#endif /* !__INTERPRETER_HPP__ */
+#endif /* ! INTERPRETER_HPP */

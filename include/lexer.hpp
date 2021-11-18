@@ -1,15 +1,19 @@
-#ifndef __LEXER_HPP__
-#define __LEXER_HPP__
+#ifndef LEXER__HPP
+#define LEXER__HPP
 
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <limits>
+#include <climits>
 #include <string>
 #include <memory>
 #include <map>
+
 #include <token_info.hpp>
 #include <arithmetic_type.hpp>
+
+#define RAW_STRING_BEGIN '\2'
 
 namespace ezcfg
 {
@@ -69,9 +73,7 @@ namespace ezcfg
 				}
 
 				char peek() const
-				{
-					return current_charator;
-				}
+				{ return current_charator; }
 
 			private:
 				char current_charator;
@@ -124,15 +126,16 @@ namespace ezcfg
 								break;
 							}
 							return temp;
+						case 'R':	//very very special! pay attention!
+							if (stream.peek() == '"')
+								current_charator = RAW_STRING_BEGIN;
 						default:
 							return temp;
 						}
 				}
 
 				char peek() const
-				{
-					return current_charator;
-				}
+				{ return current_charator; }
 
 			private:
 				char current_charator;
@@ -177,29 +180,28 @@ namespace ezcfg
 			}
 
 			inline char get()
-			{
-				return comment_filter_stream.get();
-			}
+			{ return comment_filter_stream.get(); }
 
 			inline char peek()
-			{
-				return comment_filter_stream.peek();
-			}
+			{ return comment_filter_stream.peek(); }
 
 			inline char getRaw()
+			{ return base_stream->get(); }
+
+			inline char peekRaw()
+			{ return base_stream->peek(); }
+
+			inline void recover()
 			{
-				return base_stream->get();
+				format_filter_stream.get();
+				comment_filter_stream.get();
 			}
 
 			inline size_t getLineNum()
-			{
-				return line;
-			}
+			{ return line; }
 
 			explicit operator bool() const
-			{
-				return comment_filter_stream.peek() != std::ifstream::traits_type::eof();
-			}
+			{ return comment_filter_stream.peek() != std::ifstream::traits_type::eof(); }
 
 		private:
 			size_t line;
@@ -209,18 +211,13 @@ namespace ezcfg
 			CommentFilterStream comment_filter_stream;
 		};
 
-		template<bool (Lexer::*charSet)()>
-		inline void matchCS(std::string& seq)
-		{ while ((this->*charSet)()) seq.push_back(stream.get()); }
-
-		template<bool (Lexer::*charSet)()>
-		void recognizeCS(const std::string& info, std::string& seq)
+		enum CharactorSetName
 		{
-			if ((this->*charSet)())
-				do seq.push_back(stream.get());
-				while ((this->*charSet)());
-			else lexError(info);
-		}
+			BIN,
+			OCT,
+			DEC,
+			HEX
+		};
 
 		inline bool binarySet()
 		{ return stream.peek() == '0' || stream.peek() == '1'; }
@@ -237,17 +234,43 @@ namespace ezcfg
 		inline bool identifierSet()
 		{ return stream.peek() >= 'a' && stream.peek() <= 'z' || stream.peek() >= 'A' && stream.peek() <= 'Z' || stream.peek() >= '0' && stream.peek() <= '9' || stream.peek() == '_'; }
 
-		inline void recognizeBinaryCS(std::string& seq)
-		{ recognizeCS<&Lexer::binarySet>("Expected a binary number", seq); }
+		inline bool dcharSet()
+		{ return stream.peekRaw() != ' ' && stream.peekRaw() != '\t' && stream.peekRaw() != '(' && stream.peekRaw() != ')' && stream.peekRaw() != '\v' && stream.peekRaw() != '\f' && stream.peekRaw() != '\n'; }
 
-		inline void recognizeOctalCS(std::string& seq)
-		{ recognizeCS<&Lexer::octalSet>("Expected a octal number", seq); }
 
-		inline void recognizeDecimalCS(std::string& seq)
-		{ recognizeCS<&Lexer::decimalSet>("Expected a decimal number", seq); }
+		template<CharactorSetName name> struct CharactorSetInfo;
 
-		inline void recognizeHexadecimalCS(std::string& seq)
-		{ recognizeCS<&Lexer::hexadecimalSet>("Expected a hexadecimal number", seq); }
+		template<CharactorSetName set_name>
+		void recognizeCS(std::string& seq)
+		{
+			if ((this->*CharactorSetInfo<set_name>::isInSet)())
+				do seq.push_back(stream.get());
+				while ((this->*CharactorSetInfo<set_name>::isInSet)());
+			else lexError(CharactorSetInfo<set_name>::info);
+		}
+
+		template<CharactorSetName set_name>
+		void matchNumCS(std::string& seq)
+		{
+			while ((this->*CharactorSetInfo<set_name>::isInSet)()) seq.push_back(stream.get());
+			while (stream.peek() == '\'')
+			{
+				stream.get();
+				recognizeCS<set_name>(seq);
+			}
+		}
+
+		template<CharactorSetName set_name>
+		void recognizeNumCS(std::string& seq)
+		{
+			goto start_point;
+			while (stream.peek() == '\'')
+			{
+				stream.get();
+			start_point:
+				recognizeCS<set_name>(seq);
+			}
+		}
 
 		char charToNum(char c)
 		{
@@ -291,9 +314,8 @@ namespace ezcfg
 			case 'x':
 			{
 				stream.get();
-				while (stream.peek() == '0') stream.get();
 				std::string result;
-				recognizeHexadecimalCS(result);
+				recognizeCS<HEX>(result);
 				if (result.size() == 1)
 					return charToNum(result.back());
 				else
@@ -409,6 +431,36 @@ namespace ezcfg
 				lexError("Expected the charactor '");
 		}
 
+		void recognizeRawString()
+		{
+			if (stream.peek() != RAW_STRING_BEGIN)
+				lexError("Expected the charactor R\"");
+
+			std::string dchar_sequence;
+			while (dcharSet()) dchar_sequence.push_back(stream.getRaw());
+			if (stream.getRaw() != '(')
+				lexError("Expected the charactor ( in raw string");
+			std::string temp;
+			while (true)
+			{
+				do token_text.push_back(stream.getRaw());
+				while (token_text.back() != ')');
+				while (temp.size() < dchar_sequence.size() && stream.peekRaw() != ')') temp.push_back(stream.getRaw());
+				if (temp == dchar_sequence && stream.peekRaw() == '"')
+				{
+					stream.getRaw();
+					token_text.pop_back();
+					stream.recover();
+					return;
+				}
+				else
+				{
+					token_text += temp;
+					temp.clear();
+				}
+			}
+		}
+
 		void recognizeSingleString()
 		{
 			if (stream.get() != '"')
@@ -437,11 +489,14 @@ namespace ezcfg
 
 		void recognizeMultiString()
 		{
-			if (stream.peek() != '"')
+			if (stream.peek() != '"' && stream.peek() != RAW_STRING_BEGIN)
 				lexError("Expected the charactor \"");
 			while (true)
 				switch (stream.peek())
 				{
+				case RAW_STRING_BEGIN:
+					recognizeRawString();
+					break;
 				case '"':
 					recognizeSingleString();
 					break;
@@ -519,9 +574,9 @@ namespace ezcfg
 				case 'b':
 				case 'B':
 					token_text.push_back(stream.get());
-					recognizeBinaryCS(token_text);
+					recognizeNumCS<BIN>(token_text);
 					if (token_text.size() - 2 > CHAR_BIT * sizeof(size_t))
-						std::_Xout_of_range("stoull argument out of range");
+						lexError("binary number out of range");
 					else
 					{
 						size_t temp = std::strtoull(token_text.c_str() + 2, &discarded_value, 2);
@@ -531,14 +586,14 @@ namespace ezcfg
 				case 'x':
 				case 'X':
 					token_text.push_back(stream.get());
-					matchCS<&Lexer::hexadecimalSet>(token_text);
+					matchNumCS<HEX>(token_text);
 					if (stream.peek() != '.')
 					{
 						if (token_text.size() - 2 > CHAR_BIT * sizeof(size_t) / 4)
-							std::_Xout_of_range("stoull argument out of range");
+							lexError("hexadecimal number out of range");
 						else
 						{
-							size_t temp = std::strtoull(token_text.c_str(), &discarded_value, 16);
+							size_t temp = std::strtoull(token_text.c_str() + 2, &discarded_value, 16);
 							number = IntegerT{ temp ,isSigned(temp) && matchIntegerSuffix() };
 						}
 					}
@@ -546,7 +601,7 @@ namespace ezcfg
 					{
 						current_token = Token::FLOAT;
 						token_text.push_back(stream.get());
-						matchCS<&Lexer::hexadecimalSet>(token_text);
+						matchNumCS<HEX>(token_text);
 						if (token_text.size() < 4)
 							lexError("Expected a hexadecimal number");
 
@@ -555,7 +610,7 @@ namespace ezcfg
 							token_text.push_back(stream.get());
 							if (stream.peek() == '-' || stream.peek() == '+')
 								token_text.push_back(stream.get());
-							recognizeHexadecimalCS(token_text);
+							recognizeNumCS<HEX>(token_text);
 						}
 						number = std::stod(token_text);
 						matchFloatSuffix();
@@ -567,7 +622,7 @@ namespace ezcfg
 				}
 			}
 
-			matchCS<&Lexer::decimalSet>(token_text);
+			matchNumCS<DEC>(token_text);
 			if (stream.peek() != '.')
 			{
 				if (octal_check)
@@ -585,13 +640,13 @@ namespace ezcfg
 			{
 				current_token = Token::FLOAT;
 				token_text.push_back(stream.get());
-				matchCS<&Lexer::decimalSet>(token_text);
+				matchNumCS<DEC>(token_text);
 				if (stream.peek() == 'e' || stream.peek() == 'E')
 				{
 					token_text.push_back(stream.get());
 					if (stream.peek() == '-' || stream.peek() == '+')
 						token_text.push_back(stream.get());
-					recognizeDecimalCS(token_text);
+					recognizeNumCS<DEC>(token_text);
 				}
 				number = std::stod(token_text);
 				matchFloatSuffix();
@@ -600,13 +655,13 @@ namespace ezcfg
 
 		void recognizeDotBeginFloat()
 		{
-			recognizeDecimalCS(token_text);
+			recognizeNumCS<DEC>(token_text);
 			if (stream.peek() == 'e' || stream.peek() == 'E')
 			{
 				token_text.push_back(stream.get());
 				if (stream.peek() == '-' || stream.peek() == '+')
 					token_text.push_back(stream.get());
-				recognizeDecimalCS(token_text);
+				recognizeNumCS<DEC>(token_text);
 			}
 			number = std::stod(token_text);
 		}
@@ -666,6 +721,15 @@ namespace ezcfg
 					else
 						return current_token = Token::DOT;
 
+				case '\'':
+					recognizeCharactor();
+					return current_token = Token::INT;
+
+				case RAW_STRING_BEGIN:
+				case '"':
+					recognizeMultiString();
+					return current_token = Token::STR;
+
 				case '#':
 					while (stream.get() != '\n');
 					break;
@@ -676,24 +740,16 @@ namespace ezcfg
 				case '(':
 				case ')':
 				case '<':    //  < <<
+				case '=':    //  = (==)
+				case '+':    //  + (++)
+				case '-':    //  - (--)
 				case '>':
 				case ',':
 				case ';':
-				case '=':    //  = (==)
-				case '+':
-				case '-':
 				case '*':
 				case '/':
 				case '%':
 					return current_token = static_cast<Token>(stream.get());
-
-				case '\'':
-					recognizeCharactor();
-					return current_token = Token::INT;
-
-				case '"':
-					recognizeMultiString();
-					return current_token = Token::STR;
 
 				case '~':
 				case '!':
@@ -854,5 +910,32 @@ namespace ezcfg
 		std::string token_text;
 		ArithmeticT number;
 	};
+
+	template<> struct Lexer::CharactorSetInfo<Lexer::BIN>
+	{
+		constexpr static const char* info = "Expected a binary number";
+		constexpr static bool (Lexer::* isInSet)() = &Lexer::binarySet;
+	};
+
+	template<> struct Lexer::CharactorSetInfo<Lexer::OCT>
+	{
+		constexpr static const char* info = "Expected a octal number";
+		constexpr static bool (Lexer::* isInSet)() = &Lexer::octalSet;
+	};
+
+	template<> struct Lexer::CharactorSetInfo<Lexer::DEC>
+	{
+		constexpr static const char* info = "Expected a decimal number";
+		constexpr static bool (Lexer::* isInSet)() = &Lexer::decimalSet;
+	};
+
+	template<> struct Lexer::CharactorSetInfo<Lexer::HEX>
+	{
+		constexpr static const char* info = "Expected a hexadecimal number";
+		constexpr static bool (Lexer::* isInSet)() = &Lexer::hexadecimalSet;
+	};
 } /* namespace: ezcfg */
-#endif /* !__LEXER_HPP__ */
+
+#undef RAW_STRING_BEGIN
+
+#endif /* ! LEXER__HPP */

@@ -61,6 +61,9 @@ TEST_CASE("lex")
 	REQUIRE(bool(lex.getNumber()) == false);
 	REQUIRE(lex.getTokenText() == "false");
 
+	REQUIRE(lex.next() == ezcfg::Token::STR);
+	REQUIRE(lex.getTokenText() == "\n)\\\na\"\n");
+
 	REQUIRE(lex.next() == ezcfg::Token::ID);
 	REQUIRE(lex.getTokenText() == "_0identify");
 
@@ -76,6 +79,8 @@ TEST_CASE("lex")
 	REQUIRE(double(lex.getNumber()) == 5.999);
 	REQUIRE(lex.next() == ezcfg::Token::FLOAT);
 	REQUIRE(double(lex.getNumber()) == 0xff.55ap-06);
+	REQUIRE(lex.next() == ezcfg::Token::FLOAT);
+	REQUIRE(double(lex.getNumber()) == .566e80);
 
 	REQUIRE(lex.next() == ezcfg::Token::END);
 }
