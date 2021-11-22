@@ -27,62 +27,172 @@ namespace ezcfg
 		}
 
 		template<typename T>
-		void parse(T& data)
+		typename std::enable_if<std::is_arithmetic<T>::value>::type parse(T& data)
+		{
+			if (lex.option(Token::L_BRACE))
+			{
+				if (lex.option(Token::R_BRACE))
+					data = T{};
+				else
+				{
+					data = exprExpr();
+					lex.option(Token::COMMA);
+					lex.match(Token::R_BRACE);
+				}
+			}
+			else
+				data = exprList();
+
+			lex.option(Token::SEMICOLON);
+		}
+
+		template<class T>
+		typename std::enable_if<!std::is_arithmetic<T>::value>::type parse(T& data)
 		{
 			parserDispatcher(data);
 			lex.option(Token::SEMICOLON);
 		}
 
 		template<typename T, typename... TS>
-		void parse(T& data, TS&... datas)
+		inline void parse(T& data, TS&... datas)
 		{
-			parserDispatcher(data);
-			lex.option(Token::SEMICOLON);
+			parse(data);
 			parse(datas...);
 		}
 
 		template<typename T>
-		void parseExpression(T& num)
+		inline ArithmeticT parseExpression(T& num)
 		{
 			static_assert(std::is_arithmetic<T>::value, "Expected a arithmetic type");
-
-			if (lex.getToken() == Token::INT||lex.getToken() == Token::FLOAT)
-				num = lex.getNumber();
-			else
-				lex.syntaxError("Expected number");
-
-			lex.next();
+			return exprList();
 		}
 
 		explicit operator bool() const
 		{ return static_cast<bool>(lex); }
 
 	private:
+		/*
+		<list>    =   <expr> {"," <expr>}
+		<expr>    =   <term> {("+" | "-") <term>}
+		<term>    =   <factor> {("*" | "/" | "%") <factor>}
+		<factor>  =   {("-" | "+")} <base>
+		<base>    =   <constant> | "(" <list> ")"
+		*/
+
+		ArithmeticT exprList()
+		{
+			auto&& op = exprExpr();
+			while (lex.option(Token::COMMA))
+				op = exprExpr();
+			return op;
+		}
+
+		ArithmeticT exprExpr()
+		{
+			auto&& l_op = exprTerm();
+			while(true)
+				switch (lex.getToken())
+				{
+				case Token::ADD:
+					lex.next();
+					l_op = l_op + exprTerm();
+					break;
+				case Token::SUB:
+					lex.next();
+					l_op = l_op - exprTerm();
+					break;
+				default:
+					return l_op;
+				}
+		}
+
+		ArithmeticT exprTerm()
+		{
+			auto&& l_op = exprFactor();
+			while (true)
+				switch (lex.getToken())
+				{
+				case Token::MUL:
+					lex.next();
+					l_op = l_op * exprFactor();
+					break;
+				case Token::DIV:
+					lex.next();
+					l_op = l_op / exprFactor();
+					break;
+				case Token::REM:
+					lex.next();
+					l_op = l_op % exprFactor();
+					break;
+				default:
+					return l_op;
+				}
+		}
+
+		ArithmeticT exprFactor()
+		{
+			size_t sub_symbol_count = 0;
+
+			while (lex.getToken() == Token::ADD || lex.getToken() == Token::SUB)
+			{
+				if (lex.getToken() == Token::SUB)
+					sub_symbol_count++;
+				lex.next();
+			}
+
+			if(sub_symbol_count%2==1)
+				return -exprBase();
+			else
+				return exprBase();
+		}
+
+		ArithmeticT exprBase()
+		{
+			if (lex.option(Token::L_PARENTHESIS))
+			{
+				auto&& temp = exprList();
+				lex.match(Token::R_PARENTHESIS);
+				return temp;
+			}
+			else
+				return exprConst();
+		}
+
+		ArithmeticT exprConst()
+		{
+			if (lex.getToken() == Token::INT || lex.getToken() == Token::FLOAT)
+			{
+				auto&& temp = lex.getNumber();
+				lex.next();
+				return temp;
+			}
+			else
+				lex.syntaxError("Expected number");
+		}
+
 		template<typename T>
 		void parseArithmeticCell(T& num)
 		{
 			static_assert(std::is_arithmetic<T>::value, "Expected a arithmetic type");
 
-			if (lex.getToken() == Token::L_BRACE)
+			if (lex.option(Token::L_BRACE))
 			{
-				lex.match(Token::L_BRACE);
-				if (lex.getToken() != Token::R_BRACE)
-				{
-					parseExpression(num);
-					lex.option(Token::COMMA);
-				}
+				if (lex.option(Token::R_BRACE))
+					num = T{};
 				else
-					num = 0;
-				lex.match(Token::R_BRACE);
+				{
+					num = exprExpr();
+					lex.option(Token::COMMA);
+					lex.match(Token::R_BRACE);
+				}
 			}
 			else
-				parseExpression(num);
+				num = exprExpr();
 		}
 
 		void stringToString(std::string& string)
 		{
-			if (lex.getToken() == Token::STR)
-				string = lex.getTokenText();
+			string = lex.getTokenText();
 			lex.match(Token::STR);
 		}
 
@@ -90,8 +200,6 @@ namespace ezcfg
 		void stringToString(T(&string)[n])
 		{
 			const std::string& raw = lex.getTokenText();
-			//while (!raw.back())
-			//	raw.pop_back();
 
 			if (raw.size() >= n)
 				lex.syntaxError("initializer-string for current array is too long");
@@ -112,7 +220,7 @@ namespace ezcfg
 			while (lex.getToken() == Token::COMMA)
 			{
 				if (lex.next() == Token::R_BRACE)
-					break;
+					return ;
 				parseArithmeticCell(temp);
 				string.push_back(temp);
 			}
@@ -133,9 +241,8 @@ namespace ezcfg
 		template<typename T>
 		void parseString(T& string)
 		{
-			if (lex.getToken() == Token::L_BRACE)
+			if (lex.option(Token::L_BRACE))
 			{
-				lex.match(Token::L_BRACE);
 				if (lex.getToken() == Token::STR)
 				{
 					stringToString(string);

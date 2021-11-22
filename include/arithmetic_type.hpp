@@ -158,7 +158,7 @@ namespace ezcfg
 		ARITHMETICT_DEFINE_OPERATOR(*)
 		ARITHMETICT_DEFINE_OPERATOR(/)
 
-		ArithmeticT operator %(ArithmeticT& r_operator) const
+		ArithmeticT operator %(const ArithmeticT& r_operator) const
 		{
 			if (is_float || r_operator.is_float)
 				exit(-1);
