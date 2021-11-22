@@ -32,13 +32,10 @@ namespace ezcfg
 	public:
 		Compiler(const std::string file)
 		{
-			auto ofs_ptr = new std::ofstream(file);
+			auto ofs_ptr = std::unique_ptr<std::ofstream>{ new std::ofstream(file) };
 			if (!ofs_ptr->is_open())
-			{
-				delete ofs_ptr;
 				exit(-1);
-			}
-			stream.reset(ofs_ptr);
+			stream = std::move(ofs_ptr);
 		}
 
 		Compiler(int argc, char* argv[])
@@ -58,14 +55,12 @@ namespace ezcfg
 		{
 			if (!lex.loadFile(file))
 				exit(-1);
-			lex.next();
 		}
 
 		void loadSource(const std::string& source)
 		{
 			if (!lex.loadSource(source))
 				exit(-1);
-			lex.next();
 		}
 
 		void templateArgumentsRecognize()
@@ -355,8 +350,7 @@ namespace ezcfg
 
 int main(int argc, char** argv)
 {
-	ezcfg::Compiler cp(argv[2]);
-	cp.loadFile(argv[1]);
+	ezcfg::Compiler cp(argc, argv);
 	cp.compile();
 	return 0;
 }

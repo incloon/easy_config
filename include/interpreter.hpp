@@ -20,11 +20,19 @@ namespace ezcfg
 	class Interpreter
 	{
 	public:
-		Interpreter(const std::string file)
-		{
-			lex.loadFile(file);
-			lex.next();
-		}
+		Interpreter()
+			: lex{}
+		{}
+
+		Interpreter(const std::string& str, bool is_file = true)
+			: lex{ str, is_file }
+		{}
+
+		bool loadFile(const std::string& file)
+		{ return lex.loadFile(file); }
+
+		bool loadSource(const std::string& source)
+		{ return lex.loadSource(source); }
 
 		template<typename T>
 		typename std::enable_if<std::is_arithmetic<T>::value>::type parse(T& data)

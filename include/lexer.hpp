@@ -152,15 +152,12 @@ namespace ezcfg
 				, comment_filter_stream{ file_name, format_filter_stream }
 			{}
 
-			bool loadFile(const std::string& file)
+			bool loadFile()
 			{
-				auto ifs_ptr = new std::ifstream(file);
+				auto ifs_ptr = std::unique_ptr<std::ifstream>{ new std::ifstream(file_name) };
 				if (!ifs_ptr->is_open())
-				{
-					delete ifs_ptr;
 					return false;
-				}
-				base_stream.reset(ifs_ptr);
+				base_stream = std::move(ifs_ptr);
 				line = 1;
 				format_filter_stream.get();
 				comment_filter_stream.get();
@@ -675,11 +672,23 @@ namespace ezcfg
 			, number{ 0 }
 		{};
 
+		Lexer(const std::string& str, bool is_file = true)
+			: file_name{ is_file ? str : "string" }
+			, stream{ file_name }
+			, current_token{ Token::END }
+			, token_text{}
+			, number{ 0 }
+		{
+			is_file ? stream.loadFile() : stream.loadSource(str);
+			next();
+		}
+
 		bool loadFile(const std::string& file)
 		{
-			if (!stream.loadFile(file))
-				return false;
 			file_name = file;
+			if (!stream.loadFile())
+				return false;
+			next();
 			return true;
 		}
 
@@ -688,6 +697,7 @@ namespace ezcfg
 			if (!stream.loadSource(source))
 				return false;
 			file_name = "string";
+			next();
 			return true;
 		}
 
@@ -857,6 +867,7 @@ namespace ezcfg
 			case Token::FLOAT:
 				std::cerr << " value is " << number;
 				break;
+			case Token::ID:
 			case Token::STR:
 				std::cerr << " value is " << token_text;
 				break;

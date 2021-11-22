@@ -9,7 +9,7 @@ TEST_CASE("lex")
 	lex.loadFile(args.argv()[1]);
 
 	REQUIRE(lex);
-	REQUIRE(lex.next() == ezcfg::Token::SCOPE);
+	REQUIRE(lex.getToken() == ezcfg::Token::SCOPE);
 	REQUIRE(lex.next() == ezcfg::Token::L_ANGLE_BRACKET);
 	REQUIRE(lex.next() == ezcfg::Token::L_BRACE);
 	REQUIRE(lex.next() == ezcfg::Token::L_BRACE);
