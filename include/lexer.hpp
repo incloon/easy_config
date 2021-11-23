@@ -717,10 +717,29 @@ namespace ezcfg
 					}
 					else
 					{
-						std::cout << "Lexer: Current symbol not support! line: " << __LINE__ << std::endl;
-						exit(-1);
+						lexError("Current symbol not support!");
 						return current_token = Token::COLON;
 					}
+				case '+':    //  + (++)
+					stream.get();
+					if (stream.peek() == '+')
+					{
+						lexError("Token ++ is not support!");
+						stream.get();
+						return current_token = Token::INC;
+					}
+					else
+						return current_token = Token::ADD;
+				case '-':    //  - (--)
+					stream.get();
+					if (stream.peek() == '-')
+					{
+						lexError("Token -- is not support!");
+						stream.get();
+						return current_token = Token::DEC;
+					}
+					else
+						return current_token = Token::SUB;
 				case '.':
 					token_text.push_back(stream.get());
 					if (decimalSet())
@@ -751,8 +770,6 @@ namespace ezcfg
 				case ')':
 				case '<':    //  < <<
 				case '=':    //  = (==)
-				case '+':    //  + (++)
-				case '-':    //  - (--)
 				case '>':
 				case ',':
 				case ';':
@@ -767,8 +784,7 @@ namespace ezcfg
 				case '|':    //  | (||)
 				case '^':
 				case '?':
-					std::cout << "Lexer: Current symbol not support! line: " << __LINE__ << std::endl;
-					exit(-1);
+					lexError("Current symbol not support!");
 
 				case ' ':
 				case '\t':

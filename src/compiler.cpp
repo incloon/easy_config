@@ -110,6 +110,10 @@ namespace ezcfg
 
 		bool variableDeclaration()
 		{
+			struct_info.emplace_back();
+			std::string& identify = struct_info.back().identify_name;
+			std::string& type_name = struct_info.back().identify_type;
+
 			while(true)
 				switch (lex.getToken())
 				{
@@ -117,12 +121,10 @@ namespace ezcfg
 					lex.next();
 					break;
 				default:
+					struct_info.pop_back();
 					return false;
 					break;
 				case Token::ID:
-					struct_info.emplace_back();
-					std::string& identify = struct_info.back().identify_name;
-					std::string& type_name = struct_info.back().identify_type;
 					type_name = lex.getTokenText();
 					if (lex.next() == Token::ID)
 					{
@@ -134,11 +136,12 @@ namespace ezcfg
 							identify = lex.getTokenText();
 						}
 					}
-					if(lex.getToken() == Token::SCOPE|| lex.getToken() == Token::L_ANGLE_BRACKET)
+					if(lex.getToken() == Token::SCOPE || lex.getToken() == Token::L_ANGLE_BRACKET)
 						type_name += identify;
 
 					while (lex.getToken() == Token::SCOPE)
 					{
+				case Token::SCOPE:
 						lex.next();
 						type_name += "::";
 						type_name += lex.getTokenText();
@@ -333,7 +336,7 @@ namespace ezcfg
 		{
 			lex.match(Token::MACRO_REGISTER);
 			lex.match(Token::L_PARENTHESIS);
-			lex.match(Token::ID);
+			while (lex.next() != Token::R_PARENTHESIS);
 			lex.match(Token::R_PARENTHESIS);
 			lex.match(Token::SEMICOLON);
 		}

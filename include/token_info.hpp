@@ -3,7 +3,7 @@
 
 namespace ezcfg
 {
-	enum class Token : unsigned short
+	enum class Token : unsigned char
 	{
 		L_BRACE             =  '{' ,
 		R_BRACE             =  '}' ,
@@ -32,7 +32,9 @@ namespace ezcfg
 		BIT_AND             =  '&' ,
 		BIT_OR              =  '|' ,
 		BIT_XOR             =  '^' ,
-		LOG_AND             =  128 , //  &&
+		INC                 =  128 , //  ++
+		DEC,                //  --
+		LOG_AND,            //  &&
 		LOG_OR,             //  ||
 		BIT_L_SHIFT,        //  <<
 		//end not support
