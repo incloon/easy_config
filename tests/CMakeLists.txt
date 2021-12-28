@@ -1,3 +1,23 @@
+#[[
+ This file is part of easy_config.
+
+ Copyright (c) 2021 Incloon
+
+easy_config is free software : you can redistribute itand /or modify
+it under the terms of the GNU Lesser General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+easy_config is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public
+License along with easy_config.
+If not, see < https://www.gnu.org/licenses/>.
+]]
+
 cmake_minimum_required(VERSION 3.15)
 include(FetchContent)
 
