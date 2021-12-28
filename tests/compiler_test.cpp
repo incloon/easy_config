@@ -1,6 +1,6 @@
 #include "common_test_header.h"
 #include <interpreter.hpp>
-#include "pod_struct.h"
+#include "test_struct.h"
 
 using namespace std;
 
@@ -11,7 +11,7 @@ TEST_CASE("pod struct parse")
 	ezcfg::Interpreter itp(args.argv()[1]);
 	REQUIRE(itp);
 
-	pod rr;
+	TestStr rr;
 	itp.parse(rr);
 
 	CHECK(rr.a == 1);

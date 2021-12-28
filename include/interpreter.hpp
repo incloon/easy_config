@@ -68,11 +68,11 @@ namespace ezcfg
 			parse(datas...);
 		}
 
-		template<typename T>
-		inline ArithmeticT parseExpression(T& num)
+		inline ArithmeticT parseExpression()
 		{
-			static_assert(std::is_arithmetic<T>::value, "Expected a arithmetic type");
-			return exprList();
+			auto temp = exprList();
+			lex.option(Token::SEMICOLON);
+			return temp;
 		}
 
 		explicit operator bool() const

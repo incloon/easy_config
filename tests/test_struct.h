@@ -1,6 +1,6 @@
 #include <interpreter.hpp>
 
-struct pod
+struct TestStr
 {
 	int a = 1;;;;
 	float b = 5;
@@ -14,4 +14,4 @@ struct pod
 	int def_value2 = 22;
 };
 
-EZCFG_REGISTER_STRUCT(::pod);
+EZCFG_REGISTER_STRUCT(::TestStr);

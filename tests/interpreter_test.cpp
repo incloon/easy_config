@@ -1,10 +1,10 @@
 #include "common_test_header.h"
 #include <interpreter.hpp>
-#include "pod_struct.h"
+#include "test_struct.h"
 using namespace std;
 
 template<>
-void ezcfg::Interpreter::parserDispatcher<::pod>(pod& data)
+void ezcfg::Interpreter::parserDispatcher<::TestStr>(TestStr& data)
 {
 	lex.match(Token::L_BRACE);
 	lex.match(Token::DOT);
@@ -50,14 +50,14 @@ void ezcfg::Interpreter::parserDispatcher<::pod>(pod& data)
 	lex.match(Token::R_BRACE);
 }
 
-TEST_CASE("pod struct parse")
+TEST_CASE("test struct parse")
 {
 	REQUIRE(args.argc() > 1);
 
 	ezcfg::Interpreter itp(args.argv()[1]);
 	REQUIRE(itp);
 
-	pod rr;
+	TestStr rr;
 	itp.parse(rr);
 
 	CHECK(rr.a == 1);
@@ -75,4 +75,13 @@ TEST_CASE("pod struct parse")
 	CHECK(rr.h.size() == 2);
 	CHECK(rr.h[8.6] == 789);
 	CHECK(rr.h[9.654] == 568);
+}
+
+TEST_CASE("expression parse test")
+{
+	ezcfg::Interpreter itp("(1), (1.5 + 1) * 2; 33 * -33",false);
+	double a = itp.parseExpression();
+	CHECK(a == ((1), (1.5 + 1) * 2));
+	int b = itp.parseExpression();
+	CHECK(b == (33 * -33));
 }

@@ -1,5 +1,5 @@
 /*
-struct pod
+struct TestStr
 {
 	int a;
 	float b;

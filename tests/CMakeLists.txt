@@ -23,10 +23,10 @@ target_link_libraries(test_set PRIVATE
 
 target_compile_features(test_set PRIVATE cxx_std_20)
 
-set(TEST_GEN_FILE ${CMAKE_CURRENT_BINARY_DIR}/pod_struct.cpp)
+set(TEST_GEN_FILE ${CMAKE_CURRENT_BINARY_DIR}/test_struct_parse_code.cpp)
 add_custom_command(
 	OUTPUT ${TEST_GEN_FILE}
-	COMMAND compiler tests/pod_struct.h ${TEST_GEN_FILE}
+	COMMAND compiler tests/test_struct.h ${TEST_GEN_FILE}
 	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 	DEPENDS compiler
 )
@@ -50,8 +50,8 @@ target_compile_features(compiler_test PRIVATE cxx_std_20)
 #####################################################################
 
 add_test (lexer_test test_set ${CMAKE_CURRENT_SOURCE_DIR}/lexis_sample.txt --dt-source-file=*lexer_test*)
-add_test (interpreter_test test_set ${CMAKE_CURRENT_SOURCE_DIR}/pod_struct.txt --dt-source-file=*interpreter_test*)
-add_test (compiler_test compiler_test ${CMAKE_CURRENT_SOURCE_DIR}/pod_struct.txt)
+add_test (interpreter_test test_set ${CMAKE_CURRENT_SOURCE_DIR}/test_struct_init.txt --dt-source-file=*interpreter_test*)
+add_test (compiler_test compiler_test ${CMAKE_CURRENT_SOURCE_DIR}/test_struct_init.txt)
 
 add_custom_target(run_test ALL
 	COMMAND ctest -C $<CONFIG> --output-on-failure
