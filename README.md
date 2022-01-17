@@ -1,5 +1,9 @@
 # easy_config
 
+[![Ubuntu](https://github.com/incloon/easy_config/actions/workflows/ubuntu-unit.yml/badge.svg?branch=main)](https://github.com/incloon/easy_config/actions/workflows/ubuntu-unit.yml)
+[![Windows](https://github.com/incloon/easy_config/actions/workflows/windows-unit.yml/badge.svg?branch=main)](https://github.com/incloon/easy_config/actions/workflows/windows-unit.yml)
+[![macOS](https://github.com/incloon/easy_config/actions/workflows/macos-unit.yml/badge.svg?branch=main)](https://github.com/incloon/easy_config/actions/workflows/macos-unit.yml)
+
 [中文](README.md) | [English (TODO)](doc/README_English.md)
 
 `easy_config` 是一个 `C++11` 运行期结构体聚合初始化反射库，可以允许您在运行期将聚合初始化的内容读入您自定义的结构体中，通过几步非常简单的设置即可将此项目嵌入您的项目并实现反射，此项目使用了 `CMake` 来生成用户的结构体聚合初始化解析代码，除了标准库外没有其他外部依赖
