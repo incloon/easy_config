@@ -45,16 +45,16 @@ namespace ezcfg
 			{
 			public:
 				FormatFilterStream(size_t& line, const std::unique_ptr<std::istream>& stream)
-					: current_charator{ 0 }
+					: current_character{ 0 }
 					, line{ line }
 					, stream{ stream }
 				{}
 
 				char get()
 				{
-					char temp = current_charator;
+					char temp = current_character;
 					while (true)
-						switch (current_charator = stream->get())
+						switch (current_character = static_cast<char>(stream->get()))
 						{
 						case '\\':
 							switch (stream->peek())
@@ -70,18 +70,24 @@ namespace ezcfg
 								stream->get();
 								++line;
 								break;
-							case std::ifstream::traits_type::eof():
-								current_charator = std::ifstream::traits_type::eof();
+							case static_cast<char>(std::ifstream::traits_type::eof()):
+								current_character = '\n';
 								return temp;
 							default:
 								return temp;
 							}
 							break;
+                        case static_cast<char>(std::ifstream::traits_type::eof()):
+                            if (temp == '\n' || temp == static_cast<char>(std::ifstream::traits_type::eof()))
+                                current_character = static_cast<char>(std::ifstream::traits_type::eof());
+                            else
+                                current_character = '\n';
+                            return temp;
 						case '\r'://fallthrough
 							if (stream->peek() == '\n')
 							{
 								stream->get();
-								current_charator = '\n';
+                                current_character = '\n';
 							}
 							else
 								return temp;
@@ -93,10 +99,10 @@ namespace ezcfg
 				}
 
 				char peek() const
-				{ return current_charator; }
+				{ return current_character; }
 
 			private:
-				char current_charator;
+				char current_character;
 				size_t& line;
 				const std::unique_ptr<std::istream>& stream;
 			};
@@ -105,23 +111,23 @@ namespace ezcfg
 			{
 			public:
 				CommentFilterStream(const std::string& file_name, FormatFilterStream& stream)
-					: current_charator{ 0 }
+					: current_character{ 0 }
 					, file_name{ file_name }
 					, stream{ stream }
 				{}
 
 				char get()
 				{
-					char temp = current_charator;
+					char temp = current_character;
 					while (true)
-						switch (current_charator = stream.get())
+						switch (current_character = stream.get())
 						{
 						case '/':
 							switch (stream.peek())
 							{
 							case '/':
 								while (stream.get() != '\n');
-								current_charator = ' ';
+                                    current_character = ' ';
 								return temp;
 							case '*':
 								stream.get();
@@ -132,11 +138,11 @@ namespace ezcfg
 										if (stream.peek() == '/')
 										{
 											stream.get();
-											current_charator = ' ';
+                                            current_character = ' ';
 											return temp;
 										}
 										break;
-									case std::ifstream::traits_type::eof():
+									case static_cast<char>(std::ifstream::traits_type::eof()):
 										//std::cerr << file_name << ": " << line << ": " << "Lexical error: Multiline comment error" << std::endl;
 										exit(-1);
 									default:
@@ -148,17 +154,17 @@ namespace ezcfg
 							return temp;
 						case 'R':	//very very special! pay attention!
 							if (stream.peek() == '"')
-								current_charator = RAW_STRING_BEGIN;
+                                current_character = RAW_STRING_BEGIN;
 						default:
 							return temp;
 						}
 				}
 
 				char peek() const
-				{ return current_charator; }
+				{ return current_character; }
 
 			private:
-				char current_charator;
+				char current_character;
 				const std::string& file_name;
 				FormatFilterStream& stream;
 			};
@@ -218,7 +224,7 @@ namespace ezcfg
 			{ return line; }
 
 			explicit operator bool() const
-			{ return comment_filter_stream.peek() != std::ifstream::traits_type::eof(); }
+			{ return comment_filter_stream.peek() != static_cast<char>(std::ifstream::traits_type::eof()); }
 
 		private:
 			size_t line;
@@ -228,7 +234,7 @@ namespace ezcfg
 			CommentFilterStream comment_filter_stream;
 		};
 
-		enum CharactorSetName
+		enum CharacterSetName
 		{
 			BIN,
 			OCT,
@@ -255,21 +261,21 @@ namespace ezcfg
 		{ return stream.peekRaw() != ' ' && stream.peekRaw() != '\t' && stream.peekRaw() != '(' && stream.peekRaw() != ')' && stream.peekRaw() != '\v' && stream.peekRaw() != '\f' && stream.peekRaw() != '\n'; }
 
 
-		template<CharactorSetName name> struct CharactorSetInfo;
+		template<CharacterSetName name> struct CharacterSetInfo;
 
-		template<CharactorSetName set_name>
+		template<CharacterSetName set_name>
 		void recognizeCS(std::string& seq)
 		{
-			if ((this->*CharactorSetInfo<set_name>::isInSet)())
+			if ((this->*CharacterSetInfo<set_name>::isInSet)())
 				do seq.push_back(stream.get());
-				while ((this->*CharactorSetInfo<set_name>::isInSet)());
-			else lexError(CharactorSetInfo<set_name>::info);
+				while ((this->*CharacterSetInfo<set_name>::isInSet)());
+			else lexError(CharacterSetInfo<set_name>::info);
 		}
 
-		template<CharactorSetName set_name>
+		template<CharacterSetName set_name>
 		void matchNumCS(std::string& seq)
 		{
-			while ((this->*CharactorSetInfo<set_name>::isInSet)()) seq.push_back(stream.get());
+			while ((this->*CharacterSetInfo<set_name>::isInSet)()) seq.push_back(stream.get());
 			while (stream.peek() == '\'')
 			{
 				stream.get();
@@ -277,7 +283,7 @@ namespace ezcfg
 			}
 		}
 
-		template<CharactorSetName set_name>
+		template<CharacterSetName set_name>
 		void recognizeNumCS(std::string& seq)
 		{
 			goto start_point;
@@ -304,7 +310,7 @@ namespace ezcfg
 		char escapeSequences()
 		{
 			if (stream.get() != '\\')
-				lexError("Expected the charator \\");
+				lexError("Expected the character \\");
 			switch (stream.peek())
 			{
 			case 'a':
@@ -350,15 +356,13 @@ namespace ezcfg
 						{
 							result = result * 8 + stream.get() - '0';
 							if (result > 255)
-								lexError("Escape charator octal number out of rang!");
+								lexError("Escape character octal number out of rang!");
 						}
 					}
 					return result;
 				}
 				else
 					return stream.get();
-
-				break;
 			}
 		}
 
@@ -425,18 +429,18 @@ namespace ezcfg
 				lexError("Float suffix error!");
 		}
 
-		void recognizeCharactor()
+		void recognizeCharacter()
 		{
 			if (stream.get() != '\'')
-				lexError("Expected the charactor '");
+				lexError("Expected the character '");
 			switch (stream.peek())
 			{
 			case '\'':
 				lexError("Void character");
 			case '\n':
 				lexError("Received \\n between ''");
-			case std::ifstream::traits_type::eof():
-				lexError("Expected the charactor '");
+			case static_cast<char>(std::ifstream::traits_type::eof()):
+				lexError("Expected the character '");
 			case '\\':
 				number = escapeSequences();
 				break;
@@ -445,18 +449,18 @@ namespace ezcfg
 				break;
 			}
 			if (stream.get() != '\'')
-				lexError("Expected the charactor '");
+				lexError("Expected the character '");
 		}
 
 		void recognizeRawString()
 		{
 			if (stream.peek() != RAW_STRING_BEGIN)
-				lexError("Expected the charactor R\"");
+				lexError("Expected the character R\"");
 
 			std::string dchar_sequence;
 			while (dcharSet()) dchar_sequence.push_back(stream.getRaw());
 			if (stream.getRaw() != '(')
-				lexError("Expected the charactor ( in raw string");
+				lexError("Expected the character ( in raw string");
 			std::string temp;
 			while (true)
 			{
@@ -481,7 +485,7 @@ namespace ezcfg
 		void recognizeSingleString()
 		{
 			if (stream.get() != '"')
-				lexError("Expected the charactor \"");
+				lexError("Expected the character \"");
 
 			while (true)
 			{
@@ -491,9 +495,9 @@ namespace ezcfg
 					stream.get();
 					return;
 				case '\n':
-					lexError("Received \\n between \"\"");
-				case std::ifstream::traits_type::eof():
-					lexError("Expected the charactor \"");
+					lexError(R"(Received \n between "")");
+				case static_cast<char>(std::ifstream::traits_type::eof()):
+					lexError("Expected the character \"");
 				case '\\':
 					token_text.push_back(escapeSequences());
 					break;
@@ -507,7 +511,7 @@ namespace ezcfg
 		void recognizeMultiString()
 		{
 			if (stream.peek() != '"' && stream.peek() != RAW_STRING_BEGIN)
-				lexError("Expected the charactor \"");
+				lexError("Expected the character \"");
 			while (true)
 				switch (stream.peek())
 				{
@@ -526,7 +530,6 @@ namespace ezcfg
 					break;
 				default:
 					return;
-					break;
 				}
 		}
 
@@ -557,14 +560,12 @@ namespace ezcfg
 				current_token = Token::ENUM;
 			else if (token_text == "const")
 				current_token = Token::CONSTANT;
-			else if (token_text == "EZCFG_REGISTER_STRUCT")
-				current_token = Token::MACRO_REGISTER;
 #endif // COMPILER
 			else
 				current_token = Token::ID;
 		}
 
-		bool isSigned(unsigned long long v)
+		static bool isSigned(unsigned long long v)
 		{
 			if (v > std::numeric_limits<int>::max() && v <= std::numeric_limits<unsigned int>::max())
 				return false;
@@ -771,7 +772,7 @@ namespace ezcfg
 						return current_token = Token::DOT;
 
 				case '\'':
-					recognizeCharactor();
+                    recognizeCharacter();
 					return current_token = Token::INT;
 
 				case RAW_STRING_BEGIN:
@@ -814,9 +815,8 @@ namespace ezcfg
 					stream.get();
 					break;
 
-				case std::ifstream::traits_type::eof():
+				case static_cast<char>(std::ifstream::traits_type::eof()):
 					return current_token = Token::END;
-					break;
 
 				default:
 					if ((stream.peek() >= 'a' && stream.peek() <= 'z') || (stream.peek() >= 'A' && stream.peek() <= 'Z') || (stream.peek() == '_'))
@@ -831,7 +831,7 @@ namespace ezcfg
 						return current_token;
 					}
 
-					lexError(std::string("Undefine symbol : ") + stream.peek());
+					lexError(std::string("Undefined symbol : ") + stream.peek());
 
 					break;
 				}
@@ -920,7 +920,7 @@ namespace ezcfg
 			exit(-1);
 		}
 
-		std::string tokenToString(Token t)
+		static std::string tokenToString(Token t)
 		{
 			static const std::map<Token, std::string> reflex =
 			{
@@ -938,7 +938,6 @@ namespace ezcfg
 				{Token::NAMESPACE,"namespace"},
 				{Token::ENUM,"enum"},
 				{Token::CONSTANT,"const"},
-				{Token::MACRO_REGISTER,"EZCFG_REGISTER_STRUCT"},
 #endif // COMPILER
 			};
 
@@ -958,25 +957,25 @@ namespace ezcfg
 		ArithmeticT number;
 	};
 
-	template<> struct Lexer::CharactorSetInfo<Lexer::BIN>
+	template<> struct Lexer::CharacterSetInfo<Lexer::BIN>
 	{
 		constexpr static const char* info = "Expected a binary number";
 		constexpr static bool (Lexer::* isInSet)() = &Lexer::binarySet;
 	};
 
-	template<> struct Lexer::CharactorSetInfo<Lexer::OCT>
+	template<> struct Lexer::CharacterSetInfo<Lexer::OCT>
 	{
 		constexpr static const char* info = "Expected a octal number";
 		constexpr static bool (Lexer::* isInSet)() = &Lexer::octalSet;
 	};
 
-	template<> struct Lexer::CharactorSetInfo<Lexer::DEC>
+	template<> struct Lexer::CharacterSetInfo<Lexer::DEC>
 	{
 		constexpr static const char* info = "Expected a decimal number";
 		constexpr static bool (Lexer::* isInSet)() = &Lexer::decimalSet;
 	};
 
-	template<> struct Lexer::CharactorSetInfo<Lexer::HEX>
+	template<> struct Lexer::CharacterSetInfo<Lexer::HEX>
 	{
 		constexpr static const char* info = "Expected a hexadecimal number";
 		constexpr static bool (Lexer::* isInSet)() = &Lexer::hexadecimalSet;

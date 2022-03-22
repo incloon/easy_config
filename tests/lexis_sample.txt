@@ -4,7 +4,7 @@
 / this is comment\
 me too
 
-'a' 'n' '*' '\n' '\075' '\55' '\x0f' //charater
+'a' 'n' '*' '\n' '\075' '\55' '\x0f' //character
 
 "this "/***/"i\
 s " R"(s)" R"dd()dd"
@@ -23,3 +23,4 @@ _0identify
 5.999l
 0xff.55ap-06
 .5'66e80
+//

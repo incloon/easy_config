@@ -34,3 +34,5 @@
 build/
 out/
 .vs/
+.idea
+cmake-*

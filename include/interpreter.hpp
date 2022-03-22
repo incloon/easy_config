@@ -473,6 +473,4 @@ namespace ezcfg
 	};
 } /* namespace: ezcfg */
 
-#define EZCFG_REGISTER_STRUCT(T) template<> void ::ezcfg::Interpreter::parserDispatcher(T&)
-
 #endif /* ! INTERPRETER_HPP */

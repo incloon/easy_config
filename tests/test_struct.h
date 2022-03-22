@@ -1,5 +1,3 @@
-#include <interpreter.hpp>
-
 struct TestStr
 {
 	int a = 1;;;;
@@ -13,5 +11,3 @@ struct TestStr
 	int def_value1 = 2;
 	int def_value2 = 22;
 };
-
-EZCFG_REGISTER_STRUCT(::TestStr);

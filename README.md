@@ -17,7 +17,6 @@
 对于下面用户定义的结构体文件 `str.h`
 
 ```c++
-#include <interpreter.hpp>
 struct Str
 {
     char c;
@@ -26,7 +25,6 @@ struct Str
     std::string str;
     ::std::vector<int> v;
 }
-EZCFG_REGISTER_STRUCT(Str); //注册需要反射的结构体
 ```
 
 `easy_config` 可以将以下结构体的聚合初始化读入结构体
@@ -46,6 +44,8 @@ EZCFG_REGISTER_STRUCT(Str); //注册需要反射的结构体
 
 ```c++
 #include <str.h>
+#include <interpreter.hpp>
+
 int main()
 {
     ezcfg::Interpreter itp("ini.txt");
@@ -70,12 +70,6 @@ int main()
    set(EZCFG_STRUCT_HEADER_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/struct.h) #必须为绝对路径，如有多个文件使用空格隔开
    add_subdirectory(third/easy_config)
    target_link_libraries(your_target PRIVATE ezcfg)
-   ```
-
-3. 在 `src/struct.h` 中包含 `interpreter.hpp`，并使用下方的宏语句在文件末尾注册需要反射的结构体
-   
-   ```
-   EZCFG_REGISTER_STRUCT(your_struct_type_name);
    ```
 
 现在你已经完成了全部的配置，现在你可以按照简单示例中的用法执行反射了XD
@@ -147,7 +141,7 @@ ezcfg::Interpreter("{1};", false).parseExpression();//不允许，此时解析�
 
 ## 实现原理
 
-`easy_config` 由一个公用的词法分析器、一个生成自定义结构体初始化解析代码的编译器和一个反射聚合初始化的解释器构成，当用户将 `easy_config` 设置为`CMake` 中的子项目时，`easy_config` 会先编译生成编译器部分，之后使用生成的编译器编译用户的结构体代码，生成解析用户定义的结构体代码，再将生成的代码与用户代码链接从而实现反射，宏 `EZCFG_REGISTER_STRUCT` 实际上是一个模板声明特化，而生成的代码就是此声明特化的实现。
+`easy_config` 由一个公用的词法分析器、一个生成自定义结构体初始化解析代码的编译器和一个反射聚合初始化的解释器构成，当用户将 `easy_config` 设置为`CMake` 中的子项目时，`easy_config` 会先编译生成编译器部分，之后使用生成的编译器编译用户的结构体代码，生成解析用户定义的结构体代码，再将生成的代码与用户代码链接从而实现反射，生成的代码是解析对应结构体函数模板的特化的实现。
 
 如果要脱离 `CMake` 使用 `easy_config` 则首先需要编译 `src` 文件下的 `compiler.cpp` 得到可执行文件 `compiler` 之后使用如下命令得到解析用户定义的结构体的代码
 

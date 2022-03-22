@@ -222,9 +222,6 @@ namespace ezcfg
 				case Token::STRUCT:
 					structDeclaration();
 					break;
-				case Token::MACRO_REGISTER:
-					registerMacroIgnore();
-					break;
 				default:
 					lex.syntaxError("Unexpected token");
 					break;
@@ -335,9 +332,6 @@ namespace ezcfg
 				case Token::STRUCT:
 					structDeclaration();
 					break;
-				case Token::MACRO_REGISTER:
-					registerMacroIgnore();
-					break;
 				case Token::END:
 					if (file_list.empty())
 						return;
@@ -350,15 +344,6 @@ namespace ezcfg
 					lex.syntaxError("Unexpected token");
 					break;
 				}
-		}
-
-		void registerMacroIgnore()
-		{
-			lex.match(Token::MACRO_REGISTER);
-			lex.match(Token::L_PARENTHESIS);
-			while (lex.next() != Token::R_PARENTHESIS);
-			lex.match(Token::R_PARENTHESIS);
-			lex.match(Token::SEMICOLON);
 		}
 
 	private:
