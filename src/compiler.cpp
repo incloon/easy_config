@@ -24,22 +24,6 @@
 
 namespace ezcfg
 {
-	struct IdentifyInfo
-	{
-	};
-
-	struct NameScope
-	{
-		std::map<std::string, NameScope*> tree;
-		std::map<std::string, IdentifyInfo> member;
-		NameScope* father;
-	};
-
-	struct NameTree
-	{
-		NameScope name_tree;
-	};
-
 	class Compiler
 	{
 		struct StructMemberInfo
@@ -50,7 +34,7 @@ namespace ezcfg
 		};
 
 	public:
-		Compiler(const std::string file)
+		Compiler(const std::string& file)
 		{
 			auto ofs_ptr = std::unique_ptr<std::ofstream>{ new std::ofstream(file) };
 			if (!ofs_ptr->is_open())
@@ -67,7 +51,7 @@ namespace ezcfg
 		void loadFile(int argc, char** argv)
 		{
 			for (size_t i = 1; i < argc - 1; i++)
-				file_list.push_back(argv[i]);
+				file_list.emplace_back(argv[i]);
 			loadFile(argv[argc - 1]);
 		}
 
@@ -123,7 +107,7 @@ namespace ezcfg
 					type_name.push_back('>');
 					return;
 				default:
-					lex.syntaxError("declear type error");
+					lex.syntaxError("declare type error");
 					break;
 				}
 		}
@@ -222,12 +206,14 @@ namespace ezcfg
 				case Token::STRUCT:
 					structDeclaration();
 					break;
+                case Token::R_BRACE:
+                    lex.match(Token::R_BRACE);
+                    current_scope_name.pop_back();
+                    return;
 				default:
 					lex.syntaxError("Unexpected token");
 					break;
 				}
-			lex.match(Token::R_BRACE);
-			current_scope_name.pop_back();
 		}
 
 		void genSructParseCode()
@@ -276,7 +262,7 @@ namespace ezcfg
 				if (is_in_if) *stream << "\t";
 				*stream << "\tlex.match(Token::DOT);\n";
 				if (is_in_if) *stream << "\t}";
-				bool is_in_if = false;
+				is_in_if = false;
 				*stream << "\tlex.matchID(\"" << it->identify_name << "\");\n";
 				*stream << "\tif (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.match(Token::EQU);\n";
 				*stream << "\tparserDispatcher(data." << it->identify_name << ");\t//" << it->identify_type << "\n";
@@ -351,7 +337,6 @@ namespace ezcfg
 		std::vector<std::string> file_list;
 		std::vector<StructMemberInfo> struct_info;
 		std::vector<std::string> current_scope_name;
-		NameScope name_tree;
 		std::unique_ptr<std::ostream> stream;
 	};
 }
