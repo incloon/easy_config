@@ -30,6 +30,7 @@
 #include <vector>
 #include <deque>
 #include <list>
+#include <forward_list>
 #include <set>
 #include <map>
 #include <unordered_set>
@@ -40,9 +41,7 @@ namespace ezcfg
 	class Interpreter
 	{
 	public:
-		Interpreter()
-			: lex{}
-		{}
+		Interpreter() = default;
 
 		Interpreter(const std::string& str, bool is_file = true)
 			: lex{ str, is_file }
@@ -82,10 +81,10 @@ namespace ezcfg
 		}
 
 		template<typename T, typename... TS>
-		inline void parse(T& data, TS&... datas)
+		inline void parse(T& data, TS&... data_pkg)
 		{
 			parse(data);
-			parse(datas...);
+			parse(data_pkg...);
 		}
 
 		inline ArithmeticT parseExpression()
@@ -239,7 +238,7 @@ namespace ezcfg
 			lex.match(Token::STR);
 		}
 
-		void charatorStreamToString(std::string& string)
+		void characterStreamToString(std::string& string)
 		{
 			char temp;
 			parseArithmeticCell(temp);
@@ -255,7 +254,7 @@ namespace ezcfg
 		}
 
 		template<typename T, size_t n>
-		void charatorStreamToString(T(&string)[n])
+		void characterStreamToString(T(&string)[n])
 		{
 			parseArithmeticCell(string[0]);
 			for (size_t i = 1; i < n; i++)
@@ -278,7 +277,7 @@ namespace ezcfg
 				}
 				else if (lex.getToken() != Token::R_BRACE)
 				{
-					charatorStreamToString(string);
+                    characterStreamToString(string);
 				}
 				lex.match(Token::R_BRACE);
 			}
@@ -291,7 +290,7 @@ namespace ezcfg
 		template<size_t n, typename T>
 		void parseArray(T& array)
 		{
-			static_assert(n, "Array size shoudn't be zero!");
+			static_assert(n, "Array size shouldn't be zero!");
 
 			lex.match(Token::L_BRACE);
 			parserDispatcher(array[0]);
@@ -325,7 +324,28 @@ namespace ezcfg
 			lex.match(Token::R_BRACE);
 		}
 
-		template<typename CellT, typename T>
+        template<typename CellT, typename T>
+        void parseForwardList(T& forward_list)
+        {
+            lex.match(Token::L_BRACE);
+            typename std::decay<CellT>::type temp;
+            forward_list.clear();
+            if (lex.getToken() != Token::R_BRACE)
+            {
+                parserDispatcher(temp);
+                auto it = forward_list.insert_after(forward_list.before_begin(), std::move(temp));
+                while (lex.getToken() == Token::COMMA)
+                {
+                    if (lex.next() == Token::R_BRACE)
+                        break;
+                    parserDispatcher(temp);
+                    it = forward_list.insert_after(it, std::move(temp));
+                }
+            }
+            lex.match(Token::R_BRACE);
+        }
+
+        template<typename CellT, typename T>
 		void parseSet(T& set)
 		{
 			lex.match(Token::L_BRACE);
@@ -410,12 +430,16 @@ namespace ezcfg
 		{ parseDynamicArray<T>(vector); }
 
 		template<typename T, typename A>
-		void parserDispatcher(std::deque<T, A>& vector)
-		{ parseDynamicArray<T>(vector); }
+		void parserDispatcher(std::deque<T, A>& deque)
+		{ parseDynamicArray<T>(deque); }
 
 		template<typename T, typename A>
-		void parserDispatcher(std::list<T, A>& vector)
-		{ parseDynamicArray<T>(vector); }
+		void parserDispatcher(std::list<T, A>& list)
+		{ parseDynamicArray<T>(list); }
+
+		template<typename T, typename A>
+		void parserDispatcher(std::forward_list<T, A>& forward_list)
+		{ parseForwardList<T>(forward_list); }
 
 
 
@@ -473,4 +497,4 @@ namespace ezcfg
 	};
 } /* namespace: ezcfg */
 
-#endif /* ! INTERPRETER_HPP */
+#endif /* ! INTERPRETER__HPP */
