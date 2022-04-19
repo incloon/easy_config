@@ -95,7 +95,9 @@ namespace ezcfg
 		explicit operator bool() const
 		{ return static_cast<bool>(lex); }
 
-	private:
+
+    	Lexer lex;
+    private:
 		/*
 		<list>    =   <expr> {"," <expr>}
 		<expr>    =   <term> {("+" | "-") <term>}
@@ -322,69 +324,38 @@ namespace ezcfg
 			lex.match(Token::R_BRACE);
 		}
 
-        template<typename CellT, typename T>
-        void parseForwardList(T& forward_list)
+        void jump()
         {
-            lex.match(Token::L_BRACE);
-            typename std::decay<CellT>::type temp;
-            forward_list.clear();
-            if (lex.getToken() != Token::R_BRACE)
+            if(lex.next() == Token::COLON)
             {
-                parserDispatcher(temp);
-                auto it = forward_list.insert_after(forward_list.before_begin(), std::move(temp));
-                while (lex.getToken() == Token::COMMA)
+                lex.match(Token::COLON);
+                if (lex.option(Token::SUB))
                 {
-                    if (lex.next() == Token::R_BRACE)
-                        break;
-                    parserDispatcher(temp);
-                    it = forward_list.insert_after(it, std::move(temp));
+                    if (lex.getToken() == Token::INT || lex.getToken() == Token::FLOAT)
+                        lex.next();
+                    else
+                        lex.syntaxError("format error");
+				}
+                else if (lex.getToken() == Token::INT || lex.getToken() == Token::FLOAT || lex.getToken() == Token::STR || lex.getToken() == Token::ID)
+                    lex.next();
+                else
+                    lex.syntaxError("format error");
+            }
+            else
+            {
+                lex.match(Token::L_BRACE);
+                for (int i = 1; i;)
+                {
+                    switch (lex.getToken())
+                    {
+                        case Token::L_BRACE: ++i; break;
+                        case Token::R_BRACE: --i; break;
+                        default: break;
+                    }
+                    lex.next();
                 }
             }
-            lex.match(Token::R_BRACE);
         }
-
-        template<typename CellT, typename T>
-		void parseSet(T& set)
-		{
-			lex.match(Token::L_BRACE);
-			typename std::decay<CellT>::type temp;
-			set.clear();
-			if (lex.getToken() != Token::R_BRACE)
-			{
-				parserDispatcher(temp);
-				set.emplace(std::move(temp));
-				while (lex.getToken() == Token::COMMA)
-				{
-					if (lex.next() == Token::R_BRACE)
-						break;
-					parserDispatcher(temp);
-					set.emplace(std::move(temp));
-				}
-			}
-			lex.match(Token::R_BRACE);
-		}
-
-		template<typename CellT1, typename CellT2, typename T>
-		void parseMap(T& map)
-		{
-			lex.match(Token::L_BRACE);
-			std::pair<CellT1, CellT2> pair;
-			map.clear();
-			if (lex.getToken() == Token::L_BRACE)
-			{
-				parserDispatcher(pair);
-				map.emplace(std::move(pair));
-				while (lex.getToken() == Token::COMMA)
-				{
-					if (lex.next() != Token::L_BRACE)
-						break;
-					parserDispatcher(pair);
-					map.emplace(std::move(pair));
-				}
-			}
-			lex.match(Token::R_BRACE);
-		}
-
 
 
 		template<class T>
@@ -394,103 +365,8 @@ namespace ezcfg
 		typename std::enable_if<std::is_arithmetic<T>::value>::type parserDispatcher(T& num)
 		{ parseArithmeticCell(num); }
 
+        void parserDispatcher(std::string& string)
+        { parseString(string); }
 
-
-		template<typename T, size_t n>
-		void parserDispatcher(T(&array)[n])
-		{ parseArray<n>(array); }
-
-		template<typename T1, size_t n>
-		void parserDispatcher(std::array<T1, n>& array)
-		{ parseArray<n>(array); }
-
-
-
-		template<size_t n>
-		void parserDispatcher(char(&string)[n])
-		{ parseString(string); }
-
-		template<size_t n>
-		void parserDispatcher(signed char(&string)[n])
-		{ parseString(string); }
-
-		template<size_t n>
-		void parserDispatcher(unsigned char(&string)[n])
-		{ parseString(string); }
-
-		void parserDispatcher(std::string& string)
-		{ parseString(string); }
-
-
-
-		template<typename T, typename A>
-		void parserDispatcher(std::vector<T, A>& vector)
-		{ parseDynamicArray<T>(vector); }
-
-		template<typename T, typename A>
-		void parserDispatcher(std::deque<T, A>& deque)
-		{ parseDynamicArray<T>(deque); }
-
-		template<typename T, typename A>
-		void parserDispatcher(std::list<T, A>& list)
-		{ parseDynamicArray<T>(list); }
-
-		template<typename T, typename A>
-		void parserDispatcher(std::forward_list<T, A>& forward_list)
-		{ parseForwardList<T>(forward_list); }
-
-
-
-		template<typename T, typename C, typename A>
-		void parserDispatcher(std::set<T, C, A>& set)
-		{ parseSet<T>(set); }
-
-		template<typename T, typename C, typename A>
-		void parserDispatcher(std::multiset<T, C, A>& set)
-		{ parseSet<T>(set); }
-
-		template<typename T, typename H, typename C, typename A>
-		void parserDispatcher(std::unordered_set<T, H, C, A>& set)
-		{ parseSet<T>(set); }
-
-		template<typename T, typename H, typename C, typename A>
-		void parserDispatcher(std::unordered_multiset<T, H, C, A>& set)
-		{ parseSet<T>(set); }
-
-
-
-		template<typename T1, typename T2>
-		void parserDispatcher(std::pair<T1, T2>& pair)
-		{
-			lex.match(Token::L_BRACE);
-			typename std::decay<T1>::type a;
-			parserDispatcher(a);
-			lex.match(Token::COMMA);
-			typename std::decay<T2>::type b;
-			parserDispatcher(b);
-			lex.option(Token::COMMA);
-			lex.match(Token::R_BRACE);
-			pair = std::make_pair<T1, T2>(std::move(a), std::move(b));
-		}
-
-		template<typename T1, typename T2, typename C, typename A>
-		void parserDispatcher(std::map<T1, T2, C, A>& map)
-		{ parseMap<T1, T2>(map); }
-
-		template<typename T1, typename T2, typename C, typename A>
-		void parserDispatcher(std::multimap<T1, T2, C, A>& map)
-		{ parseMap<T1, T2>(map); }
-
-		template<typename T1, typename T2, typename H, typename C, typename A>
-		void parserDispatcher(std::unordered_map<T1, T2, H, C, A>& map)
-		{ parseMap<T1, T2>(map); }
-
-		template<typename T1, typename T2, typename H, typename C, typename A>
-		void parserDispatcher(std::unordered_multimap<T1, T2, H, C, A>& map)
-		{ parseMap<T1, T2>(map); }
-
-
-
-		Lexer lex;
 	};
 } /* namespace: ezcfg */

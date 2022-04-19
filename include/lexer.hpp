@@ -736,7 +736,6 @@ namespace ezcfg
 					}
 					else
 					{
-						lexError("Current symbol not support!");
 						return current_token = Token::COLON;
 					}
 				case '+':    //  + (++)

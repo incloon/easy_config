@@ -228,72 +228,16 @@ namespace ezcfg
 			*stream << scope_name.str() << ">(" << scope_name.str() << "& data)\n";
 
 			*stream << "{\n\tlex.match(Token::L_BRACE);\n";
-			bool is_in_if = false;
 
-			auto rit = struct_info.rbegin();
-			for (; rit != struct_info.rend(); ++rit)
-				if (!rit->have_default_value)
-					break;
-
-			auto it = struct_info.begin();
-			if (it != rit.base())
-			{
-				for (; it < rit.base() - 1; ++it)
+				for (auto it = struct_info.begin(); it < struct_info.end(); ++it)
 				{
-					if (is_in_if) *stream << "\t";
-					*stream << "\tlex.match(Token::DOT);\n";
-					if (is_in_if) *stream << "\t}\n";
-					is_in_if = it->have_default_value;
-					if (is_in_if)
-					{
-						*stream << "\tif(lex.getTokenText() == \"" << it->identify_name << "\")\n\t{\n";
-						if (is_in_if) *stream << "\t";
-						*stream << "\tlex.match(Token::ID);\n";
-					}
-					else
-						*stream << "\tlex.matchID(\"" << it->identify_name << "\");\n";
-					if (is_in_if) *stream << "\t";
-					*stream << "\tif (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.match(Token::EQU);\n";
-					if (is_in_if) *stream << "\t";
-					*stream << "\tparserDispatcher(data." << it->identify_name << ");\t//" << it->identify_type << "\n";
-					if (is_in_if) *stream << "\t";
-					*stream << "\tlex.match(Token::COMMA);\n";
-				}
-				if (is_in_if) *stream << "\t";
-				*stream << "\tlex.match(Token::DOT);\n";
-				if (is_in_if) *stream << "\t}";
-				is_in_if = false;
-				*stream << "\tlex.matchID(\"" << it->identify_name << "\");\n";
-				*stream << "\tif (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.match(Token::EQU);\n";
-				*stream << "\tparserDispatcher(data." << it->identify_name << ");\t//" << it->identify_type << "\n";
-				if (rit == struct_info.rbegin())
-					*stream << "\tlex.option(Token::COMMA);\n";
-				++it;
-			}
-
-			if (rit != struct_info.rbegin())
-			{
-				*stream << "\tbool matched = true;\n";
-				*stream << "\tif (!(lex.option(Token::COMMA) && lex.option(Token::DOT))) goto end_parse;\n";
-				*stream << "\telse matched = false;\n";
-				for (; it < struct_info.end(); ++it)
-				{
-					*stream << "\tif(lex.getTokenText() == \"" << it->identify_name << "\")\n\t{\n";
-					*stream << "\t\tlex.match(Token::ID);\n";
-					*stream << "\t\tif (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.match(Token::EQU);\n";
-					*stream << "\t\tparserDispatcher(data." << it->identify_name << ");\t//" << it->identify_type << "\n";
-					*stream << "\t\tmatched = true;\n";
-					if (it == struct_info.end() - 1)
-						*stream << "\t\tlex.option(Token::COMMA);\n\t}\n";
-					else
-					{
-						*stream << "\t\tif (!(lex.option(Token::COMMA) && lex.option(Token::DOT))) goto end_parse;\n";
-						*stream << "\t\telse matched = false;\n\t}\n";
-					}
-				}
-				*stream << "\tend_parse: if(!matched) lex.match(Token::ID);\n";
-			}
-
+                    *stream << "\twhile(true)\n\t{\n";
+    				*stream << "\t\tif (lex.getToken() == Token::ID && lex.getTokenText() == \"" << it->identify_name << "\")\n\t\t{\n\t\t\tlex.next();\n";
+					*stream << "\t\t\tif (!lex.option(Token::COLON) && lex.getToken() != Token::L_BRACE) lex.match(Token::COLON);\n";
+					*stream << "\t\t\tparserDispatcher(data." << it->identify_name << ");\n";
+                    *stream << "\t\t\tbreak;\n\t\t}\n\t\telse jump();\n\t}\n";
+                }
+    		*stream << "\twhile(lex.getToken() != Token::R_BRACE) jump();\n";
 			*stream << "\tlex.match(Token::R_BRACE);\n}" << std::endl;
 			struct_info.clear();
 		}
