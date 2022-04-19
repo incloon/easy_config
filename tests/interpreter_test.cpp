@@ -3,51 +3,54 @@
 #include "test_struct.h"
 using namespace std;
 
-template<>
-void ezcfg::Interpreter::parserDispatcher<::TestStr>(TestStr& data)
+namespace ezcfg
 {
-	lex.match(Token::L_BRACE);
-	lex.match(Token::DOT);
-	lex.matchID("a");
-	if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
-	parserDispatcher(data.a);
-	lex.match(Token::COMMA);
-	lex.match(Token::DOT);
-	lex.matchID("b");
-	if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
-	parserDispatcher(data.b);
-	lex.match(Token::COMMA);
-	lex.match(Token::DOT);
-	lex.matchID("c");
-	if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
-	parserDispatcher(data.c);
-	lex.match(Token::COMMA);
-	lex.match(Token::DOT);
-	lex.matchID("d");
-	if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
-	parserDispatcher(data.d);
-	lex.match(Token::COMMA);
-	lex.match(Token::DOT);
-	lex.matchID("e");
-	if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
-	parserDispatcher(data.e);
-	lex.match(Token::COMMA);
-	lex.match(Token::DOT);
-	lex.matchID("f");
-	if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
-	parserDispatcher(data.f);
-	lex.match(Token::COMMA);
-	lex.match(Token::DOT);
-	lex.matchID("g");
-	if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
-	parserDispatcher(data.g);
-	lex.match(Token::COMMA);
-	lex.match(Token::DOT);
-	lex.matchID("h");
-	if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
-	parserDispatcher(data.h);
-	lex.option(Token::COMMA);
-	lex.match(Token::R_BRACE);
+    template<>
+    void Interpreter::parserDispatcher<::TestStr>(TestStr &data)
+    {
+        lex.match(Token::L_BRACE);
+        lex.match(Token::DOT);
+        lex.matchID("a");
+        if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
+        parserDispatcher(data.a);
+        lex.match(Token::COMMA);
+        lex.match(Token::DOT);
+        lex.matchID("b");
+        if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
+        parserDispatcher(data.b);
+        lex.match(Token::COMMA);
+        lex.match(Token::DOT);
+        lex.matchID("c");
+        if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
+        parserDispatcher(data.c);
+        lex.match(Token::COMMA);
+        lex.match(Token::DOT);
+        lex.matchID("d");
+        if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
+        parserDispatcher(data.d);
+        lex.match(Token::COMMA);
+        lex.match(Token::DOT);
+        lex.matchID("e");
+        if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
+        parserDispatcher(data.e);
+        lex.match(Token::COMMA);
+        lex.match(Token::DOT);
+        lex.matchID("f");
+        if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
+        parserDispatcher(data.f);
+        lex.match(Token::COMMA);
+        lex.match(Token::DOT);
+        lex.matchID("g");
+        if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
+        parserDispatcher(data.g);
+        lex.match(Token::COMMA);
+        lex.match(Token::DOT);
+        lex.matchID("h");
+        if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
+        parserDispatcher(data.h);
+        lex.option(Token::COMMA);
+        lex.match(Token::R_BRACE);
+    }
 }
 
 TEST_CASE("test struct parse")

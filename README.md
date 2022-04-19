@@ -17,6 +17,9 @@
 对于下面用户定义的结构体文件 `str.h`
 
 ```c++
+#pragma once
+#include <string>
+#include <vector>
 struct Str
 {
     char c;
@@ -24,7 +27,7 @@ struct Str
     float f;
     std::string str;
     ::std::vector<int> v;
-}
+};
 ```
 
 `easy_config` 可以将以下结构体的聚合初始化读入结构体
@@ -69,7 +72,7 @@ int main()
    ```cmake
    set(EZCFG_STRUCT_HEADER_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/struct.h) #必须为绝对路径，如有多个文件使用空格隔开
    add_subdirectory(third/easy_config)
-   target_link_libraries(your_target PRIVATE ezcfg)
+   target_link_libraries(your_target PRIVATE ezcfg::ezcfg)
    ```
 
 现在你已经完成了全部的配置，现在你可以按照简单示例中的用法执行反射了XD

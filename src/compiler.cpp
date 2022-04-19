@@ -221,7 +221,7 @@ namespace ezcfg
 			if (struct_info.empty())
 				lex.syntaxError("Empty struct is not support!");
 
-			*stream << "\ntemplate<> void ::ezcfg::Interpreter::parserDispatcher<";
+			*stream << "template<> void Interpreter::parserDispatcher<";
 			std::stringstream scope_name;
 			for (auto& smi : current_scope_name)
 				scope_name << "::" << smi;
@@ -303,13 +303,15 @@ namespace ezcfg
 			*stream << "#include <interpreter.hpp>\n";
 			if (lex.currentFilename() != "string")
 			{
-				*stream << "#include <"<< lex.currentFilename() <<">\n";
+				*stream << "#include <" << lex.currentFilename() << ">\n";
 				if (!file_list.empty())
 					for (auto& file_name : file_list)
 						*stream << "#include <" << file_name << ">\n";
 			}
 
-			while (true)
+            *stream << "\nnamespace ezcfg\n{\n";
+
+            while (true)
 				switch (lex.getToken())
 				{
 				case Token::NAMESPACE:
@@ -320,7 +322,10 @@ namespace ezcfg
 					break;
 				case Token::END:
 					if (file_list.empty())
-						return;
+                    {
+                        *stream << "} /* namespace: ezcfg */\n";
+                        return;
+                    }
 					else
 					{
 						loadFile(file_list.back());
@@ -330,7 +335,7 @@ namespace ezcfg
 					lex.syntaxError("Unexpected token");
 					break;
 				}
-		}
+        }
 
 	private:
 		Lexer lex;

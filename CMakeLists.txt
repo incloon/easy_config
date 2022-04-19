@@ -18,7 +18,7 @@
 # If not, see < https://www.gnu.org/licenses/>.                    #
 ####################################################################
 
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.5)
 project(easy_config VERSION 0.0.1 LANGUAGES CXX)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
@@ -26,7 +26,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
 endif()
 
 add_library(interpreter INTERFACE)
-target_compile_features(interpreter INTERFACE cxx_std_11)
 
 target_include_directories(interpreter INTERFACE
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -38,6 +37,7 @@ add_executable(compiler
 target_link_libraries(compiler PRIVATE
 	interpreter
 )
+target_compile_options(compiler PRIVATE -std=c++11)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	enable_testing()
@@ -45,23 +45,32 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 else()
 	if(EZCFG_STRUCT_HEADER_FILE)
 		FOREACH(file_path ${EZCFG_STRUCT_HEADER_FILE})
+			if((NOT EXISTS ${file_path}) OR (IS_DIRECTORY ${file_path}))
+				message(SEND_ERROR "File ${file_path} is not existence!")
+			endif()
 			file(RELATIVE_PATH file_path "${CMAKE_SOURCE_DIR}" "${file_path}")
-			list(APPEND EZCFG_STRUCT_HEADER_FILE ${file_path})
-			list(POP_FRONT EZCFG_STRUCT_HEADER_FILE)
+			list(APPEND EZCFG_STRUCT_HEADER_FILE_RELATIVE ${file_path})
 		ENDFOREACH()
 
 		set(GEN_FILE ${CMAKE_CURRENT_BINARY_DIR}/_ezcfg_gen_code/_ezcfg_gen_file.cpp)
 		file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/_ezcfg_gen_code/)
 		add_custom_command(
 			OUTPUT ${GEN_FILE}
-			COMMAND compiler ${EZCFG_STRUCT_HEADER_FILE} ${GEN_FILE}
+			COMMAND compiler ${EZCFG_STRUCT_HEADER_FILE_RELATIVE} ${GEN_FILE}
 			WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 			DEPENDS compiler
 		)
-		add_library(interpreter_extern OBJECT
-			${GEN_FILE}
-		)
-		add_library(ezcfg ALIAS interpreter_extern)
+		if(${CMAKE_VERSION} VERSION_LESS 3.12)
+			add_library(interpreter_extern STATIC
+				${GEN_FILE}
+				)
+		else()
+			add_library(interpreter_extern OBJECT
+				${GEN_FILE}
+				)
+		endif()
+		add_library(ezcfg::ezcfg ALIAS interpreter_extern)
+		target_compile_options(interpreter_extern PRIVATE -std=c++11)
 		target_link_libraries(interpreter_extern PUBLIC
 			interpreter
 		)
@@ -69,7 +78,7 @@ else()
 			${CMAKE_SOURCE_DIR}
 		)
 	else()
-		add_library(ezcfg ALIAS interpreter)
+		add_library(ezcfg::ezcfg ALIAS interpreter)
 		message("EZCFG_STRUCT_HEADER_FILE not set")
 	endif()
 endif()
