@@ -734,11 +734,7 @@ namespace ezcfg
 						stream.get();
 						return current_token = Token::SCOPE;
 					}
-					else
-					{
-						lexError("Current symbol not support!");
-						return current_token = Token::COLON;
-					}
+					return current_token = Token::COLON;
 				case '+':    //  + (++)
 					stream.get();
 					if (stream.peek() == '+')
@@ -747,8 +743,7 @@ namespace ezcfg
 						stream.get();
 						return current_token = Token::INC;
 					}
-					else
-						return current_token = Token::ADD;
+					return current_token = Token::ADD;
 				case '-':    //  - (--)
 					stream.get();
 					if (stream.peek() == '-')
@@ -757,8 +752,7 @@ namespace ezcfg
 						stream.get();
 						return current_token = Token::DEC;
 					}
-					else
-						return current_token = Token::SUB;
+					return current_token = Token::SUB;
 				case '.':
 					token_text.push_back(stream.get());
 					if (decimalSet())
@@ -829,7 +823,7 @@ namespace ezcfg
 						return current_token;
 					}
 
-					lexError(std::string("Undefined symbol : ") + stream.peek());
+					lexError(std::string("Undefined symbol : ") + stream.peek() + " ASCII: " + std::to_string(stream.peek()));
 
 					break;
 				}

@@ -36,22 +36,34 @@
 
 namespace ezcfg
 {
-	class Interpreter
+    template<class Interpreter>
+    struct InterpreterBase
+    {
+        InterpreterBase() = default;
+
+        InterpreterBase(const std::string& str, bool is_file = true)
+            : lex{ str, is_file }
+        { static_assert(sizeof(InterpreterBase) == sizeof(Interpreter), "ops"); }
+
+        bool loadFile(const std::string& file)
+        { return lex.loadFile(file); }
+
+        bool loadSource(const std::string& source)
+        { return lex.loadSource(source); }
+
+        explicit operator bool() const
+        { return static_cast<bool>(lex); }
+
+    protected:
+        Lexer lex;
+    };
+
+	class Interpreter : public InterpreterBase<Interpreter>
 	{
 	public:
-		Interpreter() = default;
+        using InterpreterBase<Interpreter>::InterpreterBase;
 
-		Interpreter(const std::string& str, bool is_file = true)
-			: lex{ str, is_file }
-		{}
-
-		bool loadFile(const std::string& file)
-		{ return lex.loadFile(file); }
-
-		bool loadSource(const std::string& source)
-		{ return lex.loadSource(source); }
-
-		template<typename T>
+        template<typename T>
 		typename std::enable_if<std::is_arithmetic<T>::value>::type parse(T& data)
 		{
 			if (lex.option(Token::L_BRACE))
@@ -78,22 +90,19 @@ namespace ezcfg
 			lex.option(Token::SEMICOLON);
 		}
 
-		template<typename T, typename... TS>
-		inline void parse(T& data, TS&... data_pkg)
-		{
-			parse(data);
-			parse(data_pkg...);
-		}
+        template<typename T, typename... TS>
+        inline void parse(T& data, TS&... data_pkg)
+        {
+            parse(data);
+            parse(data_pkg...);
+        }
 
-		inline ArithmeticT parseExpression()
+        inline ArithmeticT parseExpression()
 		{
 			auto temp = exprList();
 			lex.option(Token::SEMICOLON);
 			return temp;
 		}
-
-		explicit operator bool() const
-		{ return static_cast<bool>(lex); }
 
 	private:
 		/*
@@ -488,9 +497,5 @@ namespace ezcfg
 		template<typename T1, typename T2, typename H, typename C, typename A>
 		void parserDispatcher(std::unordered_multimap<T1, T2, H, C, A>& map)
 		{ parseMap<T1, T2>(map); }
-
-
-
-		Lexer lex;
 	};
 } /* namespace: ezcfg */

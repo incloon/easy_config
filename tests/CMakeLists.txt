@@ -41,7 +41,7 @@ target_link_libraries(test_set PRIVATE
 	doctest
 )
 
-target_compile_features(test_set PRIVATE cxx_std_17)
+target_compile_features(test_set PRIVATE cxx_std_11)
 
 set(TEST_GEN_FILE ${CMAKE_CURRENT_BINARY_DIR}/test_struct_parse_code.cpp)
 add_custom_command(
