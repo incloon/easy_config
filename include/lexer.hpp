@@ -29,6 +29,7 @@
 #include <map>
 
 #include <token_info.hpp>
+#include <error.hpp>
 #include <arithmetic_type.hpp>
 
 #define RAW_STRING_BEGIN '\2'
@@ -42,9 +43,10 @@ namespace ezcfg
 			class FormatFilterStream
 			{
 			public:
-				FormatFilterStream(size_t& line, const std::unique_ptr<std::istream>& stream)
+				FormatFilterStream(size_t& line, size_t& column, const std::unique_ptr<std::istream>& stream)
 					: current_character{ 0 }
 					, line{ line }
+					, column{ column }
 					, stream{ stream }
 				{}
 
@@ -67,6 +69,7 @@ namespace ezcfg
 							case '\n':
 								stream->get();
 								++line;
+								column = 1;
 								break;
 							case static_cast<char>(std::ifstream::traits_type::eof()):
 								current_character = '\n';
@@ -91,17 +94,22 @@ namespace ezcfg
 								return temp;
 						case '\n':
 							++line;
+							column = 1;
 						default:
+							++column;
 							return temp;
 						}
 				}
 
 				char peek() const
 				{ return current_character; }
+				size_t getLineNum() const { return line; }
+				size_t getColumnNum() const { return column; }
 
 			private:
 				char current_character;
 				size_t& line;
+				size_t& column;
 				const std::unique_ptr<std::istream>& stream;
 			};
 
@@ -141,8 +149,7 @@ namespace ezcfg
 										}
 										break;
 									case static_cast<char>(std::ifstream::traits_type::eof()):
-										//std::cerr << file_name << ": " << line << ": " << "Lexical error: Multiline comment error" << std::endl;
-										exit(-1);
+										throw ParseError(file_name, stream.getLineNum(), stream.getColumnNum(), "Multiline comment error");
 									default:
 										break;
 									}
@@ -160,6 +167,8 @@ namespace ezcfg
 
 				char peek() const
 				{ return current_character; }
+				size_t getLineNum() const { return stream.getLineNum(); }
+				size_t getColumnNum() const { return stream.getColumnNum(); }
 
 			private:
 				char current_character;
@@ -170,9 +179,10 @@ namespace ezcfg
 		public:
 			FilterStream(const std::string& file_name)
 				: line{ 1 }
+				, column{ 1 }
 				, file_name{ file_name }
 				, base_stream{ nullptr }
-				, format_filter_stream{ line, base_stream }
+				, format_filter_stream{ line, column, base_stream }
 				, comment_filter_stream{ file_name, format_filter_stream }
 			{}
 
@@ -183,6 +193,7 @@ namespace ezcfg
 					return false;
 				base_stream = std::move(ifs_ptr);
 				line = 1;
+				column = 1;
 				format_filter_stream.get();
 				comment_filter_stream.get();
 				return true;
@@ -195,6 +206,7 @@ namespace ezcfg
 
 				base_stream.reset(new std::stringstream(source));
 				line = 1;
+				column = 1;
 				format_filter_stream.get();
 				comment_filter_stream.get();
 				return true;
@@ -218,14 +230,17 @@ namespace ezcfg
 				comment_filter_stream.get();
 			}
 
-			inline size_t getLineNum()
+			inline size_t getLineNum() const
 			{ return line; }
+			inline size_t getColumnNum() const
+			{ return column; }
 
 			explicit operator bool() const
 			{ return comment_filter_stream.peek() != static_cast<char>(std::ifstream::traits_type::eof()); }
 
 		private:
 			size_t line;
+			size_t column;
 			const std::string& file_name;
 			std::unique_ptr<std::istream> base_stream;
 			FormatFilterStream format_filter_stream;
@@ -549,16 +564,6 @@ namespace ezcfg
 				current_token = Token::INT;
 				number = false;
 			}
-#ifdef COMPILER
-			else if (token_text == "namespace")
-				current_token = Token::NAMESPACE;
-			else if (token_text == "struct")
-				current_token = Token::STRUCT;
-			else if (token_text == "enum")
-				current_token = Token::ENUM;
-			else if (token_text == "const")
-				current_token = Token::CONSTANT;
-#endif // COMPILER
 			else
 				current_token = Token::ID;
 		}
@@ -886,6 +891,8 @@ namespace ezcfg
 			return file_name;
 		}
 
+			size_t getLineNum() const { return stream.getLineNum(); }
+			size_t getColumnNum() const { return stream.getColumnNum(); }
 		explicit operator bool() const
 		{
 			return static_cast<bool>(stream);
@@ -893,29 +900,26 @@ namespace ezcfg
 
 		[[noreturn]] void syntaxError(const std::string& info)
 		{
-			std::cerr << file_name << " : " << stream.getLineNum() << " : " << "Syntax error: " << info << std::endl;
-			std::cerr << "current token is " << tokenToString(current_token);
+			std::string token_desc = tokenToString(current_token);
 			switch (current_token)
 			{
 			case Token::INT:
 			case Token::FLOAT:
-				std::cerr << " value is " << number;
-				break;
+				throw ParseError(file_name, stream.getLineNum(), stream.getColumnNum(),
+					"Syntax error: " + info + " (current token is " + token_desc + " value is " + std::to_string(static_cast<double>(number)) + ")");
 			case Token::ID:
 			case Token::STR:
-				std::cerr << " value is " << token_text;
-				break;
+				throw ParseError(file_name, stream.getLineNum(), stream.getColumnNum(),
+					"Syntax error: " + info + " (current token is " + token_desc + " value is " + token_text + ")");
 			default:
-				break;
+				throw ParseError(file_name, stream.getLineNum(), stream.getColumnNum(),
+					"Syntax error: " + info + " (current token is " + token_desc + ")");
 			}
-			std::cerr << std::endl;
-			exit(-1);
 		}
 
 		[[noreturn]] void lexError(const std::string& info)
 		{
-			std::cerr << file_name << ": " << stream.getLineNum() << ": " << "Lexical error: " << info << std::endl;
-			exit(-1);
+			throw ParseError(file_name, stream.getLineNum(), stream.getColumnNum(), "Lexical error: " + info);
 		}
 
 		static std::string tokenToString(Token t)
@@ -931,12 +935,6 @@ namespace ezcfg
 				{Token::LOG_AND,"&&"},
 				{Token::LOG_OR,"||"},
 				{Token::END,"EOF"},
-#ifdef COMPILER
-				{Token::STRUCT,"struct"},
-				{Token::NAMESPACE,"namespace"},
-				{Token::ENUM,"enum"},
-				{Token::CONSTANT,"const"},
-#endif // COMPILER
 			};
 
 			auto iter = reflex.find(t);

@@ -36,3 +36,4 @@ out/
 .vs/
 .idea
 cmake-*
+github_apikey.txt

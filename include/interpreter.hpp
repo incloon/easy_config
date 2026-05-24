@@ -22,6 +22,7 @@
 #include <type_traits>
 #include <utility>
 #include <lexer.hpp>
+#include <meta>
 
 #include <string>
 #include <array>
@@ -386,9 +387,75 @@ namespace ezcfg
 		}
 
 
+	private:
+		template <class T, size_t... Is>
+		static consteval auto _build_member_table(std::index_sequence<Is...>)
+		{
+			auto members = std::meta::nonstatic_data_members_of(
+				^^T, std::meta::access_context::current()
+			);
+			size_t last = 0;
+			for (size_t i = 0; i < sizeof...(Is); ++i)
+				if (!std::meta::has_default_member_initializer(members[i])) last = i;
+			return std::array{
+				std::tuple{ members[Is], Is <= last, Is == last && last == sizeof...(Is) - 1 }...
+			};
+		}
 
-		template<class T>
-		typename std::enable_if<!std::is_arithmetic<T>::value>::type parserDispatcher(T&);
+		template <class T>
+		static consteval size_t _member_count()
+		{
+			return std::meta::nonstatic_data_members_of(
+				^^T, std::meta::access_context::current()
+			).size();
+		}
+
+	public:
+		template <class T>
+			requires (!std::is_arithmetic_v<T>)
+		void parserDispatcher(T& data)
+		{
+			constexpr size_t N = _member_count<T>();
+			static_assert(N > 0, "Empty struct not supported");
+			static constexpr auto table = _build_member_table<T>(std::make_index_sequence<N>{});
+
+			lex.match(Token::L_BRACE);
+
+			bool in_optional = false;
+			bool matched = true;
+
+			template for (constexpr auto entry : table) {
+				constexpr auto member = std::get<0>(entry);
+				constexpr bool mandatory = std::get<1>(entry);
+				constexpr bool is_last = std::get<2>(entry);
+
+				if constexpr (mandatory) {
+					lex.match(Token::DOT);
+					lex.matchID(std::meta::identifier_of(member).data());
+					if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
+					parserDispatcher(data.[:member:]);
+					if constexpr (!is_last) lex.match(Token::COMMA);
+				} else {
+					if (!in_optional) {
+						in_optional = true;
+					}
+					if (matched) {
+						if (lex.getToken() == Token::DOT) {
+							lex.match(Token::DOT);
+							lex.matchID(std::meta::identifier_of(member).data());
+							if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
+							parserDispatcher(data.[:member:]);
+							if (lex.getToken() == Token::COMMA)
+								lex.match(Token::COMMA);
+						} else {
+							matched = false;
+						}
+					}
+				}
+			}
+
+			lex.match(Token::R_BRACE);
+		}
 
 		template<typename T>
 		typename std::enable_if<std::is_arithmetic<T>::value>::type parserDispatcher(T& num)

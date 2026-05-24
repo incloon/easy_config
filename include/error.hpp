@@ -19,51 +19,35 @@
 \********************************************************************/
 #pragma once
 
+#include <stdexcept>
+#include <string>
+
 namespace ezcfg
 {
-	enum class Token : unsigned char
+	class ParseError : public std::runtime_error
 	{
-		L_BRACE             =  '{' ,
-		R_BRACE             =  '}' ,
-		L_BRACKET           =  '[' ,
-		R_BRACKET           =  ']' ,
-		L_PARENTHESIS       =  '(' ,
-		R_PARENTHESIS       =  ')' ,
-		L_ANGLE_BRACKET     =  '<' ,
-		R_ANGLE_BRACKET     =  '>' ,
-		DOT                 =  '.' ,
-		COMMA               =  ',' ,
-		SEMICOLON           =  ';' ,
-		HASH                =  '#' ,
+	public:
+		ParseError(std::string file, size_t line, size_t column, std::string message)
+			: std::runtime_error("")
+			, file_name{ std::move(file) }
+			, line_num{ line }
+			, col_num{ column }
+			, msg{ std::move(message) }
+		{
+			formatted = file_name + ":" + std::to_string(line_num) + ":" + std::to_string(col_num) + ": error: " + msg;
+			static_cast<std::runtime_error&>(*this) = std::runtime_error(formatted);
+		}
 
-		EQU                 =  '=' ,
-		ADD                 =  '+' ,
-		SUB                 =  '-' ,
-		MUL                 =  '*' ,
-		DIV                 =  '/' ,
-		REM                 =  '%' ,
+		const std::string& file() const noexcept { return file_name; }
+		size_t line() const noexcept { return line_num; }
+		size_t column() const noexcept { return col_num; }
+		const std::string& message() const noexcept { return msg; }
 
-		//not support
-		COLON               =  ':' ,
-		BIT_NOT             =  '~' ,
-		LOG_NOT             =  '!' ,
-		BIT_AND             =  '&' ,
-		BIT_OR              =  '|' ,
-		BIT_XOR             =  '^' ,
-		INC                 =  128 , //  ++
-		DEC,                //  --
-		LOG_AND,            //  &&
-		LOG_OR,             //  ||
-		BIT_L_SHIFT,        //  <<
-		//end not support
-
-		SCOPE,              //  ::
-		INT,                // true false
-		FLOAT,
-		STR,
-		ID,
-
-
-		END
+	private:
+		std::string file_name;
+		size_t line_num;
+		size_t col_num;
+		std::string msg;
+		std::string formatted;
 	};
 } /* namespace: ezcfg */
