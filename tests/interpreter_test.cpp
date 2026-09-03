@@ -3,55 +3,7 @@
 #include "test_struct.h"
 using namespace std;
 
-namespace ezcfg
-{
-    template<>
-    void Interpreter::parserDispatcher<::TestStr>(TestStr &data)
-    {
-        lex.match(Token::L_BRACE);
-        lex.match(Token::DOT);
-        lex.matchID("a");
-        if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
-        parserDispatcher(data.a);
-        lex.match(Token::COMMA);
-        lex.match(Token::DOT);
-        lex.matchID("b");
-        if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
-        parserDispatcher(data.b);
-        lex.match(Token::COMMA);
-        lex.match(Token::DOT);
-        lex.matchID("c");
-        if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
-        parserDispatcher(data.c);
-        lex.match(Token::COMMA);
-        lex.match(Token::DOT);
-        lex.matchID("d");
-        if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
-        parserDispatcher(data.d);
-        lex.match(Token::COMMA);
-        lex.match(Token::DOT);
-        lex.matchID("e");
-        if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
-        parserDispatcher(data.e);
-        lex.match(Token::COMMA);
-        lex.match(Token::DOT);
-        lex.matchID("f");
-        if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
-        parserDispatcher(data.f);
-        lex.match(Token::COMMA);
-        lex.match(Token::DOT);
-        lex.matchID("g");
-        if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
-        parserDispatcher(data.g);
-        lex.match(Token::COMMA);
-        lex.match(Token::DOT);
-        lex.matchID("h");
-        if (!lex.option(Token::EQU) && lex.getToken() != Token::L_BRACE) lex.option(Token::EQU);
-        parserDispatcher(data.h);
-        lex.option(Token::COMMA);
-        lex.match(Token::R_BRACE);
-    }
-}
+
 
 TEST_CASE("test struct parse")
 {
@@ -78,6 +30,8 @@ TEST_CASE("test struct parse")
 	CHECK(rr.h.size() == 2);
 	CHECK(rr.h[8.6] == 789);
 	CHECK(rr.h[9.654] == 568);
+	CHECK(rr.def_value1 == 2);
+	CHECK(rr.def_value2 == 22);
 }
 
 TEST_CASE("expression parse test")
@@ -87,4 +41,79 @@ TEST_CASE("expression parse test")
 	CHECK(a == ((1), (1.5 + 1) * 2));
 	int b = itp.parseExpression();
 	CHECK(b == (33 * -33));
+}
+
+struct Inner
+{
+	int x;
+	int y = 9;
+};
+
+struct Outer
+{
+	Inner in;
+	int z = 3;
+};
+
+TEST_CASE("nested struct and trailing defaults")
+{
+	ezcfg::Interpreter itp("{ .in = { .x = 4 } }", false);
+	Outer o;
+	itp.parse(o);
+	CHECK(o.in.x == 4);
+	CHECK(o.in.y == 9);
+	CHECK(o.z == 3);
+}
+
+TEST_CASE("missing file throws ParseError")
+{
+	CHECK_THROWS_AS(ezcfg::Interpreter("no_such_file_ezcfg.cfg"), ezcfg::ParseError);
+	try
+	{
+		ezcfg::Interpreter itp("no_such_file_ezcfg.cfg");
+		FAIL("should throw");
+	}
+	catch (const ezcfg::ParseError& e)
+	{
+		CHECK(e.line() == 1);
+		CHECK(e.column() == 1);
+		CHECK(e.message() == "Cannot open file");
+	}
+
+	ezcfg::Interpreter itp;
+	CHECK_FALSE(itp.loadFile("no_such_file_ezcfg.cfg"));
+	CHECK_FALSE(itp);
+}
+
+TEST_CASE("parse error reports line")
+{
+	ezcfg::Interpreter itp("1 +\n@", false);
+	try
+	{
+		itp.parseExpression();
+		FAIL("should throw");
+	}
+	catch (const ezcfg::ParseError& e)
+	{
+		CHECK(e.file() == "string");
+		CHECK(e.line() == 2);
+		CHECK(e.column() >= 1);
+	}
+}
+
+TEST_CASE("wrong member name reports location")
+{
+	ezcfg::Interpreter itp("{ .nope = 1 }", false);
+	Inner inner;
+	try
+	{
+		itp.parse(inner);
+		FAIL("should throw");
+	}
+	catch (const ezcfg::ParseError& e)
+	{
+		CHECK(e.line() == 1);
+		CHECK(e.column() >= 1);
+		CHECK(e.message().find("Expected identify x") != std::string::npos);
+	}
 }

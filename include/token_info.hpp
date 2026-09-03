@@ -63,13 +63,6 @@ namespace ezcfg
 		STR,
 		ID,
 
-#ifdef COMPILER
-		//keyword
-		STRUCT,
-		NAMESPACE,
-		ENUM,
-		CONSTANT,
-#endif // COMPILER
 
 		END
 	};

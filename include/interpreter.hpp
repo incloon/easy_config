@@ -22,6 +22,7 @@
 #include <type_traits>
 #include <utility>
 #include <lexer.hpp>
+#include <meta>
 
 #include <string>
 #include <array>
@@ -36,6 +37,9 @@
 
 namespace ezcfg
 {
+	template<class>
+	inline constexpr bool always_false_v = false;
+
 	class Interpreter
 	{
 	public:
@@ -52,7 +56,8 @@ namespace ezcfg
 		{ return lex.loadSource(source); }
 
 		template<typename T>
-		typename std::enable_if<std::is_arithmetic<T>::value>::type parse(T& data)
+			requires std::is_arithmetic_v<T>
+		void parse(T& data)
 		{
 			if (lex.option(Token::L_BRACE))
 			{
@@ -72,7 +77,8 @@ namespace ezcfg
 		}
 
 		template<class T>
-		typename std::enable_if<!std::is_arithmetic<T>::value>::type parse(T& data)
+			requires (!std::is_arithmetic_v<T>)
+		void parse(T& data)
 		{
 			parserDispatcher(data);
 			lex.option(Token::SEMICOLON);
@@ -386,12 +392,98 @@ namespace ezcfg
 		}
 
 
+	private:
+		static consteval std::meta::access_context reflection_access()
+		{
+			return std::meta::access_context::unprivileged();
+		}
 
-		template<class T>
-		typename std::enable_if<!std::is_arithmetic<T>::value>::type parserDispatcher(T&);
+		template <class T>
+		static consteval std::size_t member_count()
+		{
+			return std::meta::nonstatic_data_members_of(^^T, reflection_access()).size();
+		}
+
+		template <class T, std::size_t I>
+		static consteval std::meta::info nth_member()
+		{
+			return std::meta::nonstatic_data_members_of(^^T, reflection_access())[I];
+		}
+
+		template <class T, std::size_t I>
+		static consteval const char* member_name()
+		{
+			return std::define_static_string(std::meta::identifier_of(nth_member<T, I>()));
+		}
+
+		template <class T>
+		static consteval std::size_t last_mandatory_index()
+		{
+			auto members = std::meta::nonstatic_data_members_of(^^T, reflection_access());
+			std::size_t last = static_cast<std::size_t>(-1);
+			for (std::size_t i = 0; i < members.size(); ++i)
+			{
+				if (!std::meta::has_default_member_initializer(members[i]))
+					last = i;
+			}
+			return last;
+		}
+
+		template <class T>
+			requires (std::is_class_v<T> && std::is_aggregate_v<T>)
+		void parserDispatcher(T& data)
+		{
+			constexpr std::size_t N = member_count<T>();
+			constexpr std::size_t last = last_mandatory_index<T>();
+			static constexpr auto indices = [] {
+				std::array<std::size_t, N> a{};
+				for (std::size_t i = 0; i < N; ++i)
+					a[i] = i;
+				return a;
+			}();
+
+			lex.match(Token::L_BRACE);
+
+			bool matched = true;
+
+			template for (constexpr auto I : indices)
+			{
+				constexpr auto member = nth_member<T, I>();
+				constexpr bool mandatory = last != static_cast<std::size_t>(-1) && I <= last;
+
+				if constexpr (mandatory)
+				{
+					lex.match(Token::DOT);
+					lex.matchID(member_name<T, I>());
+					lex.option(Token::EQU);
+					parserDispatcher(data.[:member:]);
+					if constexpr (I < last)
+						lex.match(Token::COMMA);
+					else
+						lex.option(Token::COMMA);
+				}
+				else if (matched)
+				{
+					if (lex.getToken() == Token::DOT)
+					{
+						lex.match(Token::DOT);
+						lex.matchID(member_name<T, I>());
+						lex.option(Token::EQU);
+						parserDispatcher(data.[:member:]);
+						if (lex.getToken() == Token::COMMA)
+							lex.match(Token::COMMA);
+					}
+					else
+						matched = false;
+				}
+			}
+
+			lex.match(Token::R_BRACE);
+		}
 
 		template<typename T>
-		typename std::enable_if<std::is_arithmetic<T>::value>::type parserDispatcher(T& num)
+			requires std::is_arithmetic_v<T>
+		void parserDispatcher(T& num)
 		{ parseArithmeticCell(num); }
 
 
@@ -470,7 +562,7 @@ namespace ezcfg
 			parserDispatcher(b);
 			lex.option(Token::COMMA);
 			lex.match(Token::R_BRACE);
-			pair = std::make_pair<T1, T2>(std::move(a), std::move(b));
+			pair = std::pair<T1, T2>{ std::move(a), std::move(b) };
 		}
 
 		template<typename T1, typename T2, typename C, typename A>
@@ -490,6 +582,13 @@ namespace ezcfg
 		{ parseMap<T1, T2>(map); }
 
 
+
+		template <class T>
+		void parserDispatcher(T&)
+		{
+			static_assert(always_false_v<T>,
+				"ezcfg: unsupported type. Use an aggregate class, arithmetic type, or a supported STL container.");
+		}
 
 		Lexer lex;
 	};

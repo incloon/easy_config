@@ -562,16 +562,6 @@ namespace ezcfg
 				current_token = Token::INT;
 				number = false;
 			}
-#ifdef COMPILER
-			else if (token_text == "namespace")
-				current_token = Token::NAMESPACE;
-			else if (token_text == "struct")
-				current_token = Token::STRUCT;
-			else if (token_text == "enum")
-				current_token = Token::ENUM;
-			else if (token_text == "const")
-				current_token = Token::CONSTANT;
-#endif // COMPILER
 			else
 				current_token = Token::ID;
 		}
@@ -946,12 +936,6 @@ namespace ezcfg
 				{Token::LOG_AND,"&&"},
 				{Token::LOG_OR,"||"},
 				{Token::END,"EOF"},
-#ifdef COMPILER
-				{Token::STRUCT,"struct"},
-				{Token::NAMESPACE,"namespace"},
-				{Token::ENUM,"enum"},
-				{Token::CONSTANT,"const"},
-#endif // COMPILER
 			};
 
 			auto iter = reflex.find(t);
