@@ -137,23 +137,27 @@ namespace ezcfg
 	{
 		ArithmeticT(float value)
 			: is_float(true)
+			, integer_value(0)
 			, float_value(value)
 		{ }
 
 		ArithmeticT(double value)
 			: is_float(true)
+			, integer_value(0)
 			, float_value(value)
 		{ }
 
 		ArithmeticT(const IntegerT& value)
 			: is_float(false)
 			, integer_value(value)
+			, float_value(0)
 		{ }
 
 		template<typename T>
 		ArithmeticT(T value)
 			: is_float(false)
 			, integer_value(value)
+			, float_value(0)
 		{
 			static_assert(std::is_arithmetic<T>::value, "Expected a arithmetic type");
 			static_assert(!std::is_same<T, long double>::value, "Not support type: long double");
@@ -186,7 +190,7 @@ namespace ezcfg
 		ARITHMETICT_DEFINE_TYPE_CONVERSION(float)
 		ARITHMETICT_DEFINE_TYPE_CONVERSION(double)
 
-        ARITHMETICT_DEFINE_TYPE_CONVERSION(bool)
+		ARITHMETICT_DEFINE_TYPE_CONVERSION(bool)
 
 		ARITHMETICT_DEFINE_TYPE_CONVERSION(char)
 		ARITHMETICT_DEFINE_TYPE_CONVERSION(unsigned char)
@@ -209,14 +213,9 @@ namespace ezcfg
 		}
 
 	private:
-		typedef std::conditional<sizeof(size_t) == sizeof(double), double, float>::type FloatT;
-
 		bool is_float;
-		union
-		{
-			IntegerT integer_value;
-			double float_value;
-		};
+		IntegerT integer_value;
+		double float_value;
 	};
 } /* namespace: ezcfg */
 

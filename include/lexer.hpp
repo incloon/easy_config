@@ -42,9 +42,10 @@ namespace ezcfg
 			class FormatFilterStream
 			{
 			public:
-				FormatFilterStream(size_t& line, const std::unique_ptr<std::istream>& stream)
+				FormatFilterStream(size_t& line, size_t& column, const std::unique_ptr<std::istream>& stream)
 					: current_character{ 0 }
 					, line{ line }
+					, column{ column }
 					, stream{ stream }
 				{}
 
@@ -67,6 +68,7 @@ namespace ezcfg
 							case '\n':
 								stream->get();
 								++line;
+								column = 1;
 								break;
 							case static_cast<char>(std::ifstream::traits_type::eof()):
 								current_character = '\n';
@@ -81,27 +83,30 @@ namespace ezcfg
                             else
                                 current_character = '\n';
                             return temp;
-						case '\r'://fallthrough
+						case '\r':
 							if (stream->peek() == '\n')
-							{
 								stream->get();
-                                current_character = '\n';
-							}
-							else
-								return temp;
+							current_character = '\n';
+							[[fallthrough]];
 						case '\n':
 							++line;
+							column = 0;
+							return temp;
 						default:
+							++column;
 							return temp;
 						}
 				}
 
 				char peek() const
 				{ return current_character; }
+				size_t getLineNum() const { return line; }
+				size_t getColumnNum() const { return column; }
 
 			private:
 				char current_character;
 				size_t& line;
+				size_t& column;
 				const std::unique_ptr<std::istream>& stream;
 			};
 
@@ -160,6 +165,8 @@ namespace ezcfg
 
 				char peek() const
 				{ return current_character; }
+				size_t getLineNum() const { return stream.getLineNum(); }
+				size_t getColumnNum() const { return stream.getColumnNum(); }
 
 			private:
 				char current_character;
@@ -170,9 +177,10 @@ namespace ezcfg
 		public:
 			FilterStream(const std::string& file_name)
 				: line{ 1 }
+				, column{ 0 }
 				, file_name{ file_name }
 				, base_stream{ nullptr }
-				, format_filter_stream{ line, base_stream }
+				, format_filter_stream{ line, column, base_stream }
 				, comment_filter_stream{ file_name, format_filter_stream }
 			{}
 
@@ -183,6 +191,7 @@ namespace ezcfg
 					return false;
 				base_stream = std::move(ifs_ptr);
 				line = 1;
+				column = 0;
 				format_filter_stream.get();
 				comment_filter_stream.get();
 				return true;
@@ -195,6 +204,7 @@ namespace ezcfg
 
 				base_stream.reset(new std::stringstream(source));
 				line = 1;
+				column = 0;
 				format_filter_stream.get();
 				comment_filter_stream.get();
 				return true;
@@ -218,14 +228,17 @@ namespace ezcfg
 				comment_filter_stream.get();
 			}
 
-			inline size_t getLineNum()
+			inline size_t getLineNum() const
 			{ return line; }
+			inline size_t getColumnNum() const
+			{ return column; }
 
 			explicit operator bool() const
-			{ return comment_filter_stream.peek() != static_cast<char>(std::ifstream::traits_type::eof()); }
+			{ return base_stream && comment_filter_stream.peek() != static_cast<char>(std::ifstream::traits_type::eof()); }
 
 		private:
 			size_t line;
+			size_t column;
 			const std::string& file_name;
 			std::unique_ptr<std::istream> base_stream;
 			FormatFilterStream format_filter_stream;
@@ -394,7 +407,7 @@ namespace ezcfg
 					res = false, token_text.push_back(stream.get());
 				break;
 			case 'L':
-				stream.get();
+				token_text.push_back(stream.get());
 				if (stream.peek() == 'L')
 					token_text.push_back(stream.get());
 				if (stream.peek() == 'u' || stream.peek() == 'U')
@@ -886,6 +899,9 @@ namespace ezcfg
 			return file_name;
 		}
 
+		size_t getLineNum() const { return stream.getLineNum(); }
+		size_t getColumnNum() const { return stream.getColumnNum(); }
+		
 		explicit operator bool() const
 		{
 			return static_cast<bool>(stream);
@@ -947,8 +963,8 @@ namespace ezcfg
 		}
 
 	private:
-		FilterStream stream;
 		std::string file_name;
+		FilterStream stream;
 
 		Token current_token;
 		std::string token_text;
