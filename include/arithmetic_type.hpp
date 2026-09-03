@@ -20,6 +20,7 @@
 #pragma once
 
 #include <iostream>
+#include <stdexcept>
 #include <type_traits>
 
 #define INTEGERT_DEFINE_OPERATOR(SIGN)                          	 \
@@ -183,7 +184,7 @@ namespace ezcfg
 		ArithmeticT operator %(const ArithmeticT& r_operator) const
 		{
 			if (is_float || r_operator.is_float)
-				exit(-1);
+				throw std::domain_error("Modulo operation on floating-point values");
 			return { integer_value % r_operator.integer_value };
 		}
 

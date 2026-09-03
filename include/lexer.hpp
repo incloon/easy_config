@@ -29,6 +29,7 @@
 #include <map>
 
 #include <token_info.hpp>
+#include <error.hpp>
 #include <arithmetic_type.hpp>
 
 #define RAW_STRING_BEGIN '\2'
@@ -146,8 +147,7 @@ namespace ezcfg
 										}
 										break;
 									case static_cast<char>(std::ifstream::traits_type::eof()):
-										//std::cerr << file_name << ": " << line << ": " << "Lexical error: Multiline comment error" << std::endl;
-										exit(-1);
+										throw ParseError(file_name, stream.getLineNum(), stream.getColumnNum(), "Multiline comment error");
 									default:
 										break;
 									}
@@ -711,7 +711,9 @@ namespace ezcfg
 			, token_text{}
 			, number{ 0 }
 		{
-			is_file ? stream.loadFile() : stream.loadSource(str);
+			const bool ok = is_file ? stream.loadFile() : stream.loadSource(str);
+			if (!ok)
+				throw ParseError(file_name, 1, 1, is_file ? "Cannot open file" : "Empty source");
 			next();
 		}
 
@@ -909,29 +911,26 @@ namespace ezcfg
 
 		[[noreturn]] void syntaxError(const std::string& info)
 		{
-			std::cerr << file_name << " : " << stream.getLineNum() << " : " << "Syntax error: " << info << std::endl;
-			std::cerr << "current token is " << tokenToString(current_token);
+			std::string token_desc = tokenToString(current_token);
 			switch (current_token)
 			{
 			case Token::INT:
 			case Token::FLOAT:
-				std::cerr << " value is " << number;
-				break;
+				throw ParseError(file_name, stream.getLineNum(), stream.getColumnNum(),
+					"Syntax error: " + info + " (current token is " + token_desc + " value is " + std::to_string(static_cast<double>(number)) + ")");
 			case Token::ID:
 			case Token::STR:
-				std::cerr << " value is " << token_text;
-				break;
+				throw ParseError(file_name, stream.getLineNum(), stream.getColumnNum(),
+					"Syntax error: " + info + " (current token is " + token_desc + " value is " + token_text + ")");
 			default:
-				break;
+				throw ParseError(file_name, stream.getLineNum(), stream.getColumnNum(),
+					"Syntax error: " + info + " (current token is " + token_desc + ")");
 			}
-			std::cerr << std::endl;
-			exit(-1);
 		}
 
 		[[noreturn]] void lexError(const std::string& info)
 		{
-			std::cerr << file_name << ": " << stream.getLineNum() << ": " << "Lexical error: " << info << std::endl;
-			exit(-1);
+			throw ParseError(file_name, stream.getLineNum(), stream.getColumnNum(), "Lexical error: " + info);
 		}
 
 		static std::string tokenToString(Token t)
